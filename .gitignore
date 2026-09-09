@@ -102,9 +102,8 @@ tmp/
 temp/
 
 # Database
-*.db
-*.sqlite
-*.sqlite3
+# *.db (Allow sqlite.db demo database to be pushed)
+!sqlite.db
 
 # Webdev artifacts (checkpoint zips, migrations, etc.)
 .webdev/
