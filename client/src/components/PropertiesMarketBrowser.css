@@ -1,0 +1,314 @@
+.properties-browse {
+  position: relative;
+  isolation: isolate;
+}
+
+.properties-browse::before {
+  position: absolute;
+  top: 8px;
+  right: 0;
+  z-index: -1;
+  width: min(34vw, 390px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(124, 158, 126, 0.55));
+  content: "";
+}
+
+.properties-browse-heading {
+  align-items: flex-start;
+}
+
+.properties-browse-heading h3 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.properties-browse-heading h3::after {
+  width: 29px;
+  height: 1px;
+  background: #d7ef73;
+  content: "";
+}
+
+.properties-market-ribbon {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 15px;
+  border: 1px solid #d9e5da;
+  border-radius: 13px;
+  background: linear-gradient(105deg, #edf5e8, #fbfcf8 55%, #f6faf4);
+  padding: 8px 12px 8px 14px;
+  box-shadow: 0 8px 20px rgba(40, 79, 69, 0.035);
+}
+
+.properties-market-signal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: #496c65;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.properties-market-signal svg {
+  flex: 0 0 auto;
+  color: #386d68;
+}
+
+.properties-market-signal b {
+  color: #234749;
+}
+
+.properties-market-lenses {
+  display: flex;
+  flex: 1;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.properties-market-lenses button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #58736a;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  transition: background 160ms ease-out, border-color 160ms ease-out, color 160ms ease-out, transform 160ms ease-out;
+  cursor: pointer;
+}
+
+.properties-market-lenses button:hover {
+  border-color: #cbdcd0;
+  background: rgba(255, 255, 250, 0.72);
+  color: #2f5f5b;
+}
+
+.properties-market-lenses button.is-active {
+  border-color: #234e50;
+  background: #234e50;
+  color: #f9fdf7;
+  box-shadow: 0 4px 9px rgba(35, 78, 80, 0.15);
+}
+
+.properties-market-lenses button:active,
+.property-listing-save:active {
+  transform: scale(0.97);
+}
+
+.properties-filter-bar {
+  margin: 11px 0 16px;
+}
+
+.property-listing-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.property-listing-card::before {
+  right: 43px;
+}
+
+.property-listing-visual {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.property-listing-save {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(241, 249, 240, 0.4);
+  border-radius: 9px;
+  background: rgba(18, 56, 61, 0.64);
+  color: #fafff7;
+  backdrop-filter: blur(7px);
+  transition: background 160ms ease-out, color 160ms ease-out, transform 160ms ease-out;
+  cursor: pointer;
+}
+
+.property-listing-save:hover,
+.property-listing-save.is-saved {
+  border-color: #d7ef73;
+  background: #d7ef73;
+  color: #284c4c;
+}
+
+.property-listing-hover-read {
+  position: absolute;
+  bottom: 11px;
+  left: 11px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(236, 252, 226, 0.26);
+  border-radius: 7px;
+  background: rgba(17, 55, 60, 0.67);
+  color: #f7fcf3;
+  padding: 6px 9px;
+  font-size: 11px;
+  font-weight: 800;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 180ms ease-out, transform 180ms ease-out;
+}
+
+.property-listing-card:hover .property-listing-hover-read,
+.property-listing-card:focus-within .property-listing-hover-read {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.property-listing-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.property-listing-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+  border-top: 1px solid #e5ece5;
+  padding-top: 9px;
+  color: #557368;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.property-listing-context span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.property-listing-context small {
+  color: #798c83;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.property-listing-footer {
+  margin-top: auto;
+  padding-top: 13px;
+}
+
+.property-listing-card--lead {
+  display: grid;
+  grid-column: span 2;
+  grid-template-columns: minmax(0, 1.25fr) minmax(210px, 0.75fr);
+  background: linear-gradient(145deg, #fffefa, #f5faf2);
+}
+
+.property-listing-card--lead .property-listing-visual,
+.property-listing-card--lead .property-listing-image {
+  height: 100%;
+  min-height: 247px;
+}
+
+.property-listing-card--lead .property-listing-body {
+  justify-content: center;
+  padding: 22px;
+}
+
+.property-listing-card--lead .property-listing-body h4 {
+  font-size: 25px;
+}
+
+.property-listing-card--lead .property-listing-footer strong {
+  font-size: 20px;
+}
+
+.property-listing-card--lead .property-listing-image::after {
+  height: 56%;
+}
+
+@media (max-width: 1050px) {
+  .properties-market-ribbon {
+    flex-wrap: wrap;
+  }
+
+  .properties-market-lenses {
+    justify-content: flex-start;
+    flex-basis: 100%;
+  }
+
+  .property-listing-card--lead {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 700px) {
+  .properties-browse::before {
+    width: 125px;
+  }
+
+  .properties-market-ribbon {
+    align-items: flex-start;
+    gap: 9px;
+    padding: 10px;
+  }
+
+  .properties-market-signal {
+    align-items: flex-start;
+    font-size: 11px;
+  }
+
+  .properties-market-lenses {
+    flex-wrap: wrap;
+  }
+
+  .properties-market-lenses button {
+    padding: 6px 9px;
+  }
+
+  .property-listing-card--lead {
+    display: flex;
+    grid-column: auto;
+  }
+
+  .property-listing-card--lead .property-listing-visual,
+  .property-listing-card--lead .property-listing-image {
+    height: 190px;
+    min-height: 0;
+  }
+
+  .property-listing-card--lead .property-listing-body {
+    padding: 16px;
+  }
+
+  .property-listing-card--lead .property-listing-body h4 {
+    font-size: 19px;
+  }
+
+  .property-listing-hover-read {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .property-listing-save,
+  .property-listing-hover-read,
+  .properties-market-lenses button {
+    transition: none;
+  }
+}

@@ -1,0 +1,33 @@
+.property-accordion-gallery { display: flex; gap: 8px; min-width: 0; height: 328px; perspective: 1200px; perspective-origin: 50% 50%; }
+.property-accordion-panel { position: relative; min-width: 0; overflow: hidden; flex: 1 1 0; border: 1px solid rgba(235, 245, 235, .62); border-radius: 15px; background: #163941; box-shadow: 0 14px 28px rgba(23, 55, 62, .16); cursor: pointer; outline: none; padding: 0; transform-style: preserve-3d; transform-origin: center; }
+.property-accordion-panel:focus-visible { box-shadow: 0 0 0 3px rgba(215, 239, 115, .84), 0 14px 28px rgba(23, 55, 62, .16); }
+.property-accordion-panel img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform-origin: center; pointer-events: none; user-select: none; }
+.property-accordion-panel__wash { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(9, 31, 38, .08) 32%, rgba(9, 31, 38, .9) 100%), rgba(8, 36, 45, .31); transition: background 180ms ease-out; }
+.property-accordion-panel.is-active .property-accordion-panel__wash { background: linear-gradient(180deg, rgba(9, 31, 38, .01) 28%, rgba(9, 31, 38, .88) 100%), rgba(8, 36, 45, 0); }
+/* ── Status / badge chip ─────────────────────────────────────────────────── */
+.property-accordion-panel__status { position: absolute; top: 12px; left: 12px; max-width: calc(100% - 24px); display: inline-flex; align-items: center; gap: 5px; overflow: hidden; border: 1px solid rgba(255, 255, 255, .32); border-radius: 999px; background: rgba(21, 54, 60, .82); color: #fbfcf8; padding: 4px 9px; font-size: 11px; font-weight: 800; letter-spacing: .07em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; opacity: .78; transition: opacity 180ms ease-out, background 200ms ease-out, border-color 200ms ease-out; backdrop-filter: blur(6px); }
+.property-accordion-panel.is-active .property-accordion-panel__status { opacity: 1; }
+/* Badge colour variants */
+.property-accordion-panel__status.badge--investor-pick    { background: rgba(133, 86, 9, .88); border-color: rgba(255, 197, 61, .55); color: #ffe9a0; }
+.property-accordion-panel__status.badge--open-for-viewing { background: rgba(15, 80, 88, .88); border-color: rgba(67, 205, 222, .55); color: #a9f0f8; }
+.property-accordion-panel__status.badge--new-launch       { background: rgba(68, 25, 120, .88); border-color: rgba(170, 110, 255, .55); color: #d6b8ff; }
+.property-accordion-panel__status.badge--early-bird       { background: rgba(130, 60, 10, .88); border-color: rgba(255, 145, 60, .55); color: #ffd0a0; }
+.property-accordion-panel__status.badge--limited-units    { background: rgba(110, 20, 30, .88); border-color: rgba(255, 100, 100, .55); color: #ffb8b8; }
+.property-accordion-panel__status.badge--ready-to-move    { background: rgba(15, 78, 38, .88); border-color: rgba(72, 210, 120, .55); color: #aaf0c4; }
+.property-accordion-panel__status.badge--default          { background: rgba(21, 54, 60, .82); border-color: rgba(255,255,255,.32); color: #fbfcf8; }
+/* Star marker for manually featured listings */
+.property-accordion-panel__star { font-size: 9px; line-height: 1; opacity: .9; animation: badge-star-pulse 2.4s ease-in-out infinite; }
+@keyframes badge-star-pulse { 0%, 100% { opacity: .9; transform: scale(1); } 50% { opacity: 1; transform: scale(1.25); } }
+/* Glow ring on featured panels */
+.property-accordion-panel.is-featured { border-color: rgba(255, 197, 61, .45); box-shadow: 0 14px 28px rgba(23, 55, 62, .16), inset 0 0 0 1px rgba(255, 197, 61, .18); }
+.property-accordion-panel__rail { position: absolute; bottom: 14px; left: 13px; width: 2px; height: 24px; border-radius: 999px; background: #d7ef73; box-shadow: 0 0 12px rgba(215, 239, 115, .75); opacity: .72; }
+.property-accordion-panel__caption { position: absolute; right: 18px; bottom: 17px; left: 24px; display: flex; flex-direction: column; align-items: flex-start; color: #fbfcf8; text-align: left; }
+.property-accordion-panel__caption b { font-family: Georgia, serif; font-size: 28px; letter-spacing: -.06em; line-height: .95; }
+.property-accordion-panel__caption small { display: inline-flex; align-items: center; gap: 4px; margin-top: 7px; color: #dcebe2; font-size: 13px; }
+.property-accordion-panel__facts { display: flex; align-items: end; gap: 14px; margin-top: 15px; }
+.property-accordion-panel__facts strong { color: #fffef8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 18px; letter-spacing: -.06em; }
+.property-accordion-panel__facts em { display: inline-flex; align-items: center; gap: 4px; color: #dcebe2; font-size: 12px; font-style: normal; white-space: nowrap; }
+.property-accordion-panel__facts em svg + * { margin-left: 2px; }
+.property-accordion-panel__action { display: inline-flex; align-items: center; gap: 5px; margin-top: 12px; color: #d7ef73; font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+@media (max-width: 700px) { .property-accordion-gallery { height: 292px; flex-direction: column; gap: 6px; perspective: none; }.property-accordion-panel { min-height: 36px; transform: none !important; }.property-accordion-panel.is-active { min-height: 148px; }.property-accordion-panel__status { top: 9px; left: 10px; }.property-accordion-panel__rail { bottom: 10px; left: 10px; height: 13px; }.property-accordion-panel__caption { right: 13px; bottom: 12px; left: 21px; }.property-accordion-panel__caption b { font-size: 21px; }.property-accordion-panel__caption small { margin-top: 4px; }.property-accordion-panel__facts { margin-top: 8px; gap: 10px; }.property-accordion-panel__facts strong { font-size: 15px; }.property-accordion-panel__facts em { font-size: 11px; }.property-accordion-panel__action { margin-top: 8px; font-size: 11px; } }
+@media (prefers-reduced-motion: reduce) { .property-accordion-panel, .property-accordion-panel img { transition: none !important; }.property-accordion-panel__star { animation: none; } }

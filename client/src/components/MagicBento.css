@@ -1,0 +1,254 @@
+/*
+ * MagicBento — brand-adapted stylesheet for the Property Sales Assistant.
+ * Cards: deep navy (#121926) on the dashboard; glow uses --glow-color (default gold 201,162,95).
+ * Original React Bits CSS, retuned to the project's navy/gold design language.
+ */
+.magic-bento {
+  --mb-hue: 45;
+  --mb-white: hsl(210, 30%, 97%);
+  --mb-glow: rgba(201, 162, 95, 0.2);
+  --mb-border: rgba(82, 123, 157, 0.22);
+  --mb-background-dark: #121926;
+  --mb-background-light: #f8f9fb;
+  --mb-border-light: rgba(30, 60, 90, 0.1);
+}
+
+.card-grid {
+  display: grid;
+  gap: 0.85em;
+  padding: 0.5em;
+  max-width: 64em;
+  font-size: clamp(0.95rem, 0.9rem + 0.25vw, 1.1rem);
+}
+
+.magic-bento-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  aspect-ratio: 4/3;
+  min-height: 150px;
+  width: 100%;
+  max-width: 100%;
+  padding: 1.25em;
+  border-radius: 16px;
+  border: 1px solid var(--mb-border);
+  background: var(--mb-background-dark);
+  font-weight: 300;
+  overflow: hidden;
+  transition: all 0.3s ease;
+
+  --glow-x: 50%;
+  --glow-y: 50%;
+  --glow-intensity: 0;
+  --glow-radius: 200px;
+}
+
+.magic-bento-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(13, 22, 38, 0.35);
+}
+
+.magic-bento-card__header,
+.magic-bento-card__content {
+  display: flex;
+  position: relative;
+  color: var(--mb-white);
+}
+
+.magic-bento-card__header {
+  gap: 0.75em;
+  justify-content: space-between;
+}
+
+.magic-bento-card__content {
+  flex-direction: column;
+}
+
+.magic-bento-card__label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(232, 239, 246, 0.7);
+}
+
+.magic-bento-card__title,
+.magic-bento-card__description {
+  --clamp-title: 1;
+  --clamp-desc: 2;
+}
+
+.magic-bento-card__title {
+  font-weight: 600;
+  font-size: 18px;
+  margin: 0 0 0.25em;
+  color: #f0f4f8;
+}
+
+.magic-bento-card__description {
+  font-size: 14px;
+  line-height: 1.45;
+  opacity: 0.85;
+  color: #b9c6d2;
+}
+
+/* Light-background card overrides — applied when card color is a light value */
+.magic-bento-card--light .magic-bento-card__header,
+.magic-bento-card--light .magic-bento-card__content {
+  color: #27384a;
+}
+
+.magic-bento-card--light .magic-bento-card__label {
+  color: rgba(39, 56, 74, 0.7);
+}
+
+.magic-bento-card--light .magic-bento-card__title {
+  color: #182536;
+}
+
+.magic-bento-card--light .magic-bento-card__description {
+  color: #4a5c6e;
+  opacity: 1;
+}
+
+.magic-bento-card--light:hover {
+  box-shadow: 0 8px 28px rgba(26, 42, 66, 0.12);
+}
+
+/* Chart slot — fills space between label and value/description */
+.magic-bento-card__chart {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  padding: 0.25em 0;
+  overflow: hidden;
+}
+
+.magic-bento-card--text-autohide .magic-bento-card__title,
+.magic-bento-card--text-autohide .magic-bento-card__description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.magic-bento-card--text-autohide .magic-bento-card__title {
+  -webkit-line-clamp: var(--clamp-title);
+  line-clamp: var(--clamp-title);
+}
+
+.magic-bento-card--text-autohide .magic-bento-card__description {
+  -webkit-line-clamp: var(--clamp-desc);
+  line-clamp: var(--clamp-desc);
+}
+
+@media (max-width: 599px) {
+  .card-grid {
+    grid-template-columns: 1fr;
+    width: 90%;
+    margin: 0 auto;
+    padding: 0.5em;
+  }
+
+  .magic-bento-card {
+    width: 100%;
+    min-height: 160px;
+  }
+}
+
+@media (min-width: 600px) {
+  .card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .card-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .magic-bento-card:nth-child(3) {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+
+  .magic-bento-card:nth-child(4) {
+    grid-column: 1 / span 2;
+    grid-row: 2 / span 2;
+  }
+
+  .magic-bento-card:nth-child(6) {
+    grid-column: 4;
+    grid-row: 3;
+  }
+}
+
+/* Border glow effect — gold by default via --glow-color */
+.magic-bento-card--border-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 6px;
+  background: radial-gradient(
+    var(--glow-radius) circle at var(--glow-x) var(--glow-y),
+    rgba(var(--glow-color, 201, 162, 95), calc(var(--glow-intensity) * 0.8)) 0%,
+    rgba(var(--glow-color, 201, 162, 95), calc(var(--glow-intensity) * 0.4)) 30%,
+    transparent 60%
+  );
+  border-radius: inherit;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+  z-index: 1;
+}
+
+.magic-bento-card--border-glow:hover::after {
+  opacity: 1;
+}
+
+.magic-bento-card--border-glow:hover {
+  box-shadow:
+    0 4px 20px rgba(13, 22, 38, 0.5),
+    0 0 30px var(--mb-glow);
+}
+
+.particle-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.particle::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: rgba(201, 162, 95, 0.2);
+  border-radius: 50%;
+  z-index: -1;
+}
+
+.particle-container:hover {
+  box-shadow:
+    0 4px 20px rgba(13, 22, 38, 0.3),
+    0 0 30px var(--mb-glow);
+}
+
+/* Global spotlight styles */
+.global-spotlight {
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+  z-index: 200 !important;
+  pointer-events: none;
+}
+
+.bento-section {
+  position: relative;
+  user-select: none;
+}

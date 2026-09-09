@@ -1,0 +1,102 @@
+- [x] Inspect the uploaded PropertySalesSystem archive and identify the dashboard entry page, layout components, styles, and data dependencies.
+- [x] Map the current dashboard sections by importance and decide which content should be above the fold, collapsed, grouped, or moved to secondary views.
+- [x] Redesign the dashboard into a shorter command-center layout with clearer hierarchy and more visual interest.
+- [x] Preserve existing navigation and dashboard functionality while improving responsive behavior and scan speed.
+- [x] Run the project, verify the revised dashboard at desktop and mobile widths, and report any remaining limitations.
+- [x] Replace the static Priority leads rows with a compact animated scrolling list based on the supplied AnimatedList interaction pattern.
+- [x] Keep exactly five priority-lead rows visible within the default list viewport on supported desktop widths.
+- [x] Load the next locally available priority leads when the user reaches the bottom of the list, with a clear loading and end-of-list state.
+- [x] Preserve keyboard focus, arrow-key navigation, and row-level lead details while the list loads incrementally.
+- [x] Add unit coverage and verify the updated Priority leads experience at desktop and mobile breakpoints.
+- [x] Move the Sales momentum money summary above the chart as the primary deep-dive readout.
+- [x] Relocate Performance mix and Revenue vs. commission actions from the bottom of Sales momentum to its top-right controls.
+- [x] Verify the revised Sales momentum dialog hierarchy at 375×812 and confirm the top summary and both controls remain readable, ordered, and touch accessible.
+- [x] Replace the static Pipeline health bars with a compact progress-legend layout adapted from the supplied component reference.
+- [x] Add keyboard-accessible hover and selection states that focus a funnel stage and reveal its conversion context.
+- [x] Inspect the redesigned Pipeline health card at 375×812 and confirm stage rows, tracks, focused insight, and the analytics button remain readable and non-overlapping.
+- [x] Reduce the default Pipeline health card to a compact at-a-glance summary that does not extend the dashboard lower row.
+- [x] Move the detailed interactive progress legend and stage conversion insights into an on-demand Pipeline health deep-dive.
+- [x] Inspect the compact Pipeline health deep-dive at 375×812 and confirm the summary, analytics action, stage rows, and focused insight remain readable and non-overlapping.
+- [x] Redesign the Properties page around a polished featured-listing experience inspired by the supplied DepthCarousel reference.
+- [x] Add keyboard- and touch-accessible featured-listing navigation without allowing the carousel to lengthen the default page unnecessarily.
+- [x] Improve property browsing controls, visual hierarchy, and listing details while retaining the existing Properties route.
+- [x] Inspect the redesigned Properties page at 375×812 and confirm the hero, featured carousel, filters, and listing cards remain readable and correctly ordered.
+- [x] Elevate the Properties hero and featured gallery with more distinctive editorial atmosphere and premium visual depth.
+- [x] Add concise buyer-oriented market signals and property desirability cues without fabricating reviews, ratings, or testimonials.
+- [x] Add restrained gallery motion and stronger interaction feedback while preserving keyboard and touch accessibility.
+- [x] Reconfirm the premium Properties page at 375×812 and document that its hero signals, carousel framing, cues, and listing cards remain readable and non-overlapping.
+- [x] Add direct pointer-drag and touch-swipe manipulation to the featured property carousel.
+- [x] Preserve carousel buttons, dot controls, keyboard navigation, click-to-open behavior, and reduced-motion compatibility.
+- [x] Add focused tests and verify drag/swipe interaction at desktop and mobile breakpoints.
+- [x] Verify direct carousel dragging at the emulated 375×812 mobile breakpoint, including focus change and seamless wraparound.
+- [x] Replace discrete one-step drag behavior with continuous depth-rail positioning based on the supplied DepthCarousel interaction model.
+- [x] Support continuous pointer drag, wheel progression, velocity-aware snapping, and seamless looping while preserving listing selection and dossier access.
+- [x] Retain accessible buttons, dots, keyboard controls, and reduced-motion behavior alongside the continuous gesture interaction.
+- [x] Add focused unit coverage and validate the seamless carousel at desktop and mobile breakpoints.
+- [x] Restart the development server after the reported preview outage and confirm the local preview responds again.
+- [x] Replace the featured property depth carousel with an accordion-gallery interaction adapted from the supplied reference.
+- [x] Preserve hover, focus, click, keyboard, touch, and reduced-motion behavior while each gallery panel remains a usable property listing entry point.
+- [x] Retain active-listing context and dossier access next to the accordion gallery without increasing the default Properties page footprint unnecessarily.
+- [x] Directly inspect the 375×812 accordion-gallery layout and confirm panels, active summary, and tap targets remain readable and non-overlapping.
+- [x] Remove the oversized featured-inventory introduction so the accordion gallery takes priority within the Properties page.
+- [x] Reveal richer useful property context inside the expanded accordion panel rather than in a separate static introductory block.
+- [x] Verify the gallery-led featured inventory layout at desktop and mobile widths without increasing default page scroll unnecessarily.
+- [x] Make the lower Properties listing browser more interesting with richer interactive discovery cues while retaining compact cards and dossier access.
+- [x] Redesign All listings into a creative, scan-friendly visual grid while preserving filters, saved dossiers, and direct dossier access.
+- [x] Replace the All listings dossier-atlas mosaic with a compact vertical discovery rail that retains filters, bookmarks, and direct dossier access.
+- [x] Replace the All listings discovery rail with a polished map-first property explorer that includes interactive inventory pins and a compact shortlist.
+- [x] Add state-level map drilldown with deeper dimensional map styling and replace the shortlist with a fuller selected-property briefing panel.
+- [x] Upgrade the map explorer into a manipulable 3D sky-and-terrain scene with grounded state/property pins and state-specific terrain during drilldown.
+- [x] Restyle the 3D terrain map to match the restrained editorial reference while retaining the modal viewer and grounded interactive pins.
+- [x] Restore the map section to the exact reference-matched 2.5D editorial composition while retaining state drilldown and property dossier access.
+- [x] Make the existing 2.5D map surface a manipulable 3D model-viewer scene without changing its current visual composition or surrounding interface.
+- [x] Make drag and zoom move the complete 2.5D map scene—including terrain, routes, and state/property markers—while preserving selection and dossier access.
+- [x] Enable scroll-wheel zoom within drilled-in state map views while preserving state/property selection and the overview interaction.
+- [x] Enable bounded scroll-wheel zoom in the Malaysia overview and prevent wheel input inside map boundaries from scrolling the surrounding page.
+- [x] Ground state and property markers onto the terrain slab and refine drag into a restrained 3D landmass orbit for better inspection.
+- [x] Expand the draggable 2.5D landmass movement range while preserving grounded pins and the editorial map frame.
+- [x] Make repeated selection of a drilled-in state property pin open its dossier in the existing 3D viewer with listing imagery and preliminary information alongside it.
+- [x] Redesign the property dossier page into a more premium, editorial detail experience while preserving the 3D viewer and listing reference image.
+- [x] Condense the property dossier layout so all key information and controls fit within a single viewport without requiring scrolling.
+- [x] Directly inspect the condensed property dossier at desktop and 375×812 after the latest layout changes and confirm all key information/actions are visible without page scrolling.
+- [x] Further compress or restructure the mobile dossier so the viewer, pricing, core metrics, and actions fit within one viewport.
+- [x] Restyle the property dossier with the deep teal-and-lime map aesthetic while keeping its compact layout.
+- [x] Increase the visual size and readability of the dossier’s price, status, title, location, and property metrics without reintroducing scrolling.
+- [x] Set the desktop property dossier to a 3:2 ratio between the 3D model viewer and details panel while preserving responsive behavior.
+- [x] Enlarge the dossier listing reference image to use available details-panel space without breaking the compact layout.
+- [x] Remove the top dossier mode buttons and open dossiers in 3D mode by default.
+- [x] Make the details-panel image open an image-browsing view and provide an in-viewer control to return to 3D.
+- [x] Add a real per-property image collection to the property data model and source the dossier gallery from the selected property’s own images.
+- [x] Remove cross-property gallery-image fallbacks so every dossier only browses matching listing imagery.
+- [x] Verify every dossier defaults to 3D, opens the correct image gallery, and returns to 3D without mismatched images.
+- [x] Unify the dashboard with the Properties page’s deep green, warm white, and lime-accent visual system while preserving its compact interactions.
+- [x] Retheme dashboard cards, charts, controls, and deep-dive surfaces for consistent readability at desktop and mobile widths.
+- [x] Directly inspect Sales momentum, Pipeline health, Source mix, Revenue vs. commission, and Performance mix deep dives at desktop width for readable themed contrast.
+- [x] Inspect the themed deep-dive dialogs at 375×812 and confirm chart labels, buttons, summaries, and close controls remain readable and non-overlapping.
+- [x] Redesign the Leads page with the shared deep green, warm white, and lime command-center visual system.
+- [x] Improve the Leads page hierarchy, prioritization cues, filtering workflow, and responsive readability while preserving existing lead actions.
+- [x] Restart the reported stopped development server and confirm the preview routes respond again.
+- [x] Apply the shared deep green, warm white, and lime visual system to the remaining Customers, Analytics, and AI surfaces.
+- [x] Preserve each remaining page’s workflows, navigation, and responsive readability while unifying its visual hierarchy.
+- [x] Replace the themed AI assistant’s mocked response flow with a real assistant request backed by the configured project integration.
+- [x] Revalidate the real themed AI assistant at desktop and 375×812 before completing the remaining-page rollout.
+- [x] Add a non-invasive assistant deep-link state for reproducible 375×812 surface verification.
+- [x] Redesign Analytics as a Sales Intelligence Desk with a single decision narrative and action-oriented hierarchy.
+- [x] Add a 30/60/90-day revenue and commission forecast with visible forecast confidence and assumptions.
+- [x] Add a funnel-leak diagnosis that identifies the largest drop-off and links it to a concrete follow-up action.
+- [x] Add source-quality, project, and location demand-driver views focused on qualified demand and expected revenue.
+- [x] Add a prioritized intervention list for cooling high-value leads, overdue follow-ups, and channel decisions.
+- [x] Add unit coverage and validate the Sales Intelligence Desk at desktop and 375×812 mobile widths.
+- [x] Clearly label the Sales Intelligence Desk’s current forecast, funnel, and driver calculations as frontend-preview analytics until live aggregation is connected.
+- [x] Add a real overdue-follow-up intervention from available lead workflow data and prioritise it in the action queue.
+- [x] Route the funnel-leak call-to-action to a targeted viewing-follow-up lead workflow instead of the generic Leads route.
+- [x] Revalidate the transparent preview state and targeted lead workflow at desktop and 375×812.
+- [x] Directly validate the `/leads?focus=viewing` banner, filtered queue, clear-focus action, and lead controls at 375×812.
+- [x] Restart the reported stopped development server and confirm the preview routes respond again.
+- [x] Refine the Analytics funnel diagnosis with the supplied multi-layer funnel-chart reference, including clearer stage labels and conversion context.
+- [x] Validate the refined Analytics funnel at desktop and 375×812 mobile widths.
+- [x] Directly inspect refined funnel stage selection, badges, focus context, and CTA at 375×812 before finalizing the change.
+- [x] Simplify the dashboard’s above-the-fold hierarchy around forecast, priority leads, and one supporting insight.
+- [x] Reduce the KPI layer to expected sales, priority leads, and active properties.
+- [x] Consolidate Pipeline health, Source mix, and Follow-up coverage into an on-demand Performance details surface.
+- [x] Validate the streamlined dashboard and detail surface at desktop and 375×812 mobile widths.

@@ -1,0 +1,3 @@
+- [x] Define a frontend-first monthly Revenue versus Commission data mapping for the animated bar chart.
+- [x] Add a compact analytics entry point and on-demand grouped bar-chart modal.
+- [x] Build and verify the restored analytics experience at desktop and mobile widths.

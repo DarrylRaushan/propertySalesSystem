@@ -1,0 +1,126 @@
+.map-model-viewer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  outline: none;
+  cursor: grab;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  touch-action: none;
+}
+.map-model-viewer:active { cursor: grabbing; }
+.map-model-viewer:focus-visible { box-shadow: inset 0 0 0 3px rgba(215, 239, 115, .82); }
+
+.map-model-viewer__scene {
+  position: absolute;
+  inset: 0;
+  transform: perspective(1100px) translate(var(--map-pan-x), var(--map-pan-y)) rotateX(var(--map-pitch)) rotateY(var(--map-yaw)) scale(var(--map-zoom));
+  transform-style: preserve-3d;
+  transform-origin: 50% 68%;
+  transition: transform 90ms ease-out;
+  will-change: transform;
+}
+.map-model-viewer .property-map-explorer__terrain {
+  z-index: 0;
+  transform: perspective(650px) rotateX(57deg) rotateZ(-11deg);
+}
+
+/* ── Interactive Zoom & Navigation Toolbar ──────────────────────────────── */
+.map-model-viewer__controls {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid rgba(215, 239, 115, 0.28);
+  border-radius: 999px;
+  background: rgba(10, 42, 48, 0.76);
+  padding: 4px 6px;
+  box-shadow: 0 8px 20px rgba(5, 25, 29, 0.35);
+  backdrop-filter: blur(8px);
+  user-select: none;
+}
+
+.map-model-viewer__ctrl-btn {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid rgba(215, 239, 115, 0.25);
+  border-radius: 50%;
+  background: rgba(215, 239, 115, 0.1);
+  color: #d7ef73;
+  cursor: pointer;
+  padding: 0;
+  transition: background 140ms ease-out, border-color 140ms ease-out, transform 140ms ease-out;
+}
+
+.map-model-viewer__ctrl-btn:hover {
+  border-color: #d7ef73;
+  background: rgba(215, 239, 115, 0.25);
+  transform: scale(1.06);
+}
+
+.map-model-viewer__ctrl-btn:active {
+  transform: scale(0.95);
+}
+
+.map-model-viewer__ctrl-reset {
+  margin-left: 3px;
+  border-color: rgba(255, 197, 61, 0.4);
+  background: rgba(255, 197, 61, 0.15);
+  color: #ffe9a0;
+  animation: reset-appear 200ms ease-out forwards;
+}
+
+.map-model-viewer__ctrl-reset:hover {
+  border-color: #ffc53d;
+  background: rgba(255, 197, 61, 0.3);
+}
+
+@keyframes reset-appear {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.map-model-viewer__zoom-level {
+  min-width: 38px;
+  padding: 0 4px;
+  color: #d7ef73;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.map-model-viewer__state-zoom-hint {
+  position: absolute;
+  right: 14px;
+  bottom: 13px;
+  z-index: 5;
+  border: 1px solid rgba(240, 252, 232, .3);
+  border-radius: 999px;
+  background: rgba(13, 57, 62, .72);
+  padding: 5px 10px;
+  color: #eaf5e7;
+  font-size: 11px;
+  font-weight: 700;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+
+@media (max-width: 700px) {
+  .map-model-viewer__controls {
+    top: auto;
+    bottom: 50px;
+    right: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-model-viewer__scene { transition: none; }
+  .map-model-viewer__ctrl-btn { transition: none; }
+  .map-model-viewer__ctrl-reset { animation: none; }
+}

@@ -1,0 +1,163 @@
+.property-detail-reference-image.is-interactive {
+  position: relative;
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.property-detail-reference-image.is-interactive:focus-visible,
+.property-dossier-gallery button:focus-visible {
+  outline: 2px solid #efffbc;
+  outline-offset: 3px;
+}
+
+.property-detail-reference-image.is-interactive::after {
+  background: linear-gradient(90deg, rgba(7, 55, 57, .78), rgba(7, 55, 57, .1) 66%, rgba(7, 55, 57, .32));
+}
+
+.property-detail-reference-caption {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 13px;
+  color: #f7fff1;
+}
+
+.property-detail-reference-caption span,
+.property-detail-reference-caption b {
+  display: block;
+}
+
+.property-detail-reference-caption span {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.property-detail-reference-caption b {
+  margin-left: auto;
+  font-size: 13px;
+}
+
+.property-detail-reference-caption svg {
+  color: #d7ef73;
+}
+
+.property-detail-reference-image.is-interactive:hover img {
+  transform: scale(1.03);
+}
+
+.property-dossier-gallery {
+  position: relative;
+  height: 100%;
+  min-height: inherit;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.property-dossier-gallery > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.property-dossier-gallery::after {
+  position: absolute;
+  inset: auto 0 0;
+  height: 42%;
+  background: linear-gradient(transparent, rgba(7, 47, 49, .72));
+  content: "";
+  pointer-events: none;
+}
+
+.property-dossier-gallery-nav {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(239, 255, 188, .68);
+  border-radius: 50%;
+  background: rgba(11, 63, 65, .72);
+  color: #f7fff1;
+  transform: translateY(-50%);
+  cursor: pointer;
+  transition: background 160ms ease-out, transform 160ms ease-out;
+}
+
+.property-dossier-gallery-nav:hover {
+  background: #d7ef73;
+  color: #164147;
+}
+
+.property-dossier-gallery-nav:active {
+  transform: translateY(-50%) scale(.95);
+}
+
+.property-dossier-gallery-nav.is-previous { left: 13px; }
+.property-dossier-gallery-nav.is-next { right: 13px; }
+
+.property-dossier-gallery-meta {
+  position: absolute;
+  z-index: 2;
+  right: 14px;
+  bottom: 13px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #f7fff1;
+}
+
+.property-dossier-gallery-meta > span {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.property-dossier-gallery-meta button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #d7ef73;
+  border-radius: 8px;
+  background: #d7ef73;
+  color: #164147;
+  padding: 7px 11px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 160ms ease-out, background 160ms ease-out;
+}
+
+.property-dossier-gallery-meta button:hover { background: #efffbc; }
+.property-dossier-gallery-meta button:active { transform: scale(.97); }
+
+@media (max-width: 700px) {
+  .property-dossier-gallery-nav {
+    width: 28px;
+    height: 28px;
+  }
+
+  .property-dossier-gallery-nav.is-previous { left: 9px; }
+  .property-dossier-gallery-nav.is-next { right: 9px; }
+
+  .property-dossier-gallery-meta {
+    right: 9px;
+    bottom: 8px;
+    left: 9px;
+  }
+
+  .property-dossier-gallery-meta > span { font-size: 10px; }
+  .property-dossier-gallery-meta button { padding: 5px 8px; font-size: 11px; }
+}

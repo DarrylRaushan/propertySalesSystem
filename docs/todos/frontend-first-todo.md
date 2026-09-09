@@ -1,0 +1,6 @@
+- [x] Disable dashboard tRPC queries in the frontend-first preview path so failed backend routes cannot block the page.
+- [x] Retain local lead, property, pipeline, trend, source, and follow-up data for dashboard interactions and filters.
+- [x] Preserve a documented integration seam for reconnecting tRPC when the backend is ready.
+- [x] Build and verify the compact dashboard in the unpublished preview with no API query error.
+- [x] Review desktop and mobile rendering, confirming responsive stacking without horizontal overflow.
+- [x] Prepare the frontend-first verification summary, explicitly noting that live backend integration is deferred.

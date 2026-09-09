@@ -1,0 +1,5 @@
+- [x] Inspect the existing ModelViewer, animated chart library, and AI chat implementation for current dependencies and interaction APIs.
+- [x] Add a compact 3D property-viewer entry point without expanding the dashboard’s default height.
+- [x] Add an animated chart deep-dive that is available on demand rather than permanently increasing page length.
+- [x] Ensure the existing AI chat is clearly discoverable and usable from desktop and mobile navigation.
+- [x] Verify the restored experiences at desktop and mobile widths and document any dependency-related limitations.

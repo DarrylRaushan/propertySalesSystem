@@ -1,0 +1,4 @@
+- [x] Define a unified executive model for expected sales, total leads, priority leads, and active properties.
+- [x] Make each top metric card keyboard-accessible and open the same shared Executive pulse deep-dive.
+- [x] Build a compact four-signal comparison view with trends, status signals, and a unified management readout.
+- [x] Build and verify the shared deep-dive at desktop and mobile widths without adding default dashboard scroll.

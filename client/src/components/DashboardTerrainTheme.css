@@ -1,0 +1,341 @@
+/* Shared property-terrain visual language matching the other pages (white/green terrain theme). */
+.compact-dashboard-shell {
+  background:
+    radial-gradient(circle at 90% -10%, rgba(174, 216, 117, 0.28), transparent 30%),
+    radial-gradient(circle at 10% 90%, rgba(174, 216, 117, 0.15), transparent 35%),
+    linear-gradient(180deg, #f8fff5 0%, #edf6eb 100%) !important;
+  min-height: 100vh;
+  padding-bottom: 24px;
+}
+
+.compact-dashboard {
+  --ink: #10484b;
+  --ink-soft: #2e6964;
+  --muted: #6f8d83;
+  --line: #c9dfd0;
+  --paper: #fbfff9;
+  --canvas: #edf6eb;
+  --lime: #d7ef73;
+  --shadow: 0 12px 28px rgba(12, 73, 65, 0.07);
+  position: relative;
+  color: var(--ink);
+}
+
+.compact-dashboard::before {
+  display: none;
+}
+
+.compact-topbar h1 { color: #10484b; }
+.compact-topbar h1 em { color: #397c68; }
+.compact-topbar p, .compact-kicker { color: #5a7b70; }
+.compact-status-dot { background: #8baa60; box-shadow: 0 0 0 3px rgba(139, 170, 96, 0.22); }
+
+.compact-period-switcher {
+  border: 1px solid #c9dfd0;
+  background: rgba(251, 255, 249, 0.94);
+  box-shadow: 0 4px 14px rgba(16, 72, 75, 0.06);
+}
+
+.compact-period-switcher button { color: #51756b; font-weight: 700; }
+.compact-period-switcher button.selected { background: #10484b; color: #f6ffdf; font-weight: 800; box-shadow: 0 2px 8px rgba(16, 72, 75, 0.18); }
+
+.compact-export, .compact-tool-button, .compact-icon-button {
+  border: 1px solid #c8ded0;
+  background: #fbfff9;
+  color: #285f5d;
+  border-radius: 9px;
+  font-weight: 700;
+  transition: all 160ms ease-out;
+}
+.compact-export:hover, .compact-tool-button:hover, .compact-icon-button:hover {
+  border-color: #9dbf9e;
+  background: #eff8de;
+  color: #10484b;
+  transform: translateY(-1px);
+}
+
+.compact-ai-launch {
+  border: 1px solid #2e7969;
+  background: #10484b;
+  color: #f6ffdf;
+  box-shadow: 0 8px 18px rgba(12, 72, 66, 0.14);
+}
+.compact-ai-launch:hover { background: #1a625b; }
+
+/* Clean Cohesive Cards Outlined with Header Green */
+.compact-card {
+  border: 1.5px solid #234d4d;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #fbfff8 0%, #f0f7eb 100%);
+  box-shadow: 0 14px 32px rgba(21, 57, 65, 0.12);
+  color: #10484b;
+}
+
+.priority-card {
+  padding: 16px 20px 14px;
+  border: 1.5px solid #234d4d;
+}
+
+.compact-section-label {
+  color: #234d4d;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.compact-card h2 {
+  color: #10484b;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 20px;
+  letter-spacing: -0.04em;
+}
+
+.compact-card-header p {
+  color: #567b70;
+  font-size: 12px;
+}
+
+/* Filters & Search */
+.compact-filter-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0 10px;
+}
+
+.compact-search {
+  border: 1px solid #b8d6c4;
+  background: rgba(255, 255, 252, 0.95);
+  border-radius: 8px;
+  padding: 0 10px;
+  color: #234d4d;
+}
+
+.compact-search input {
+  color: #10484b;
+  font-size: 12px;
+  height: 32px;
+}
+.compact-search input::placeholder {
+  color: #6b8e83;
+}
+
+.compact-filter-row select {
+  height: 32px;
+  border: 1px solid #b8d6c4;
+  border-radius: 8px;
+  background: #fbfff9;
+  color: #234d4d;
+  font-size: 12px;
+  padding: 0 22px 0 9px;
+}
+
+.compact-reset {
+  color: #b54a3e;
+  font-weight: 700;
+}
+
+/* Priority Queue Rows */
+.compact-priority-row {
+  border: 1px solid #c8ded0;
+  border-radius: 12px;
+  background: rgba(255, 255, 252, 0.88);
+  transition: all 160ms ease-out;
+}
+
+.compact-priority-row:hover,
+.compact-priority-row.is-expanded,
+.compact-priority-row.is-selected {
+  border-color: #234d4d;
+  background: #fcfff9;
+  box-shadow: 0 4px 14px rgba(35, 77, 77, 0.12), 0 0 0 1px rgba(35, 77, 77, 0.25);
+  transform: translateY(-1px);
+}
+
+.compact-priority-title strong {
+  color: #10484b;
+  font-size: 14px;
+}
+
+.compact-priority-title span {
+  border: 1px solid #c0dcce;
+  background: #eaf6df;
+  color: #234d4d;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.compact-priority-copy p {
+  color: #5c7e73;
+  font-size: 12px;
+}
+.compact-priority-copy p i {
+  background: #7a9e91;
+}
+
+.compact-progress {
+  background: #e1ede0;
+}
+.compact-progress span {
+  background: linear-gradient(90deg, #234d4d, #5b9b77);
+}
+
+.compact-priority-value strong {
+  color: #10484b;
+  font-size: 14px;
+}
+.compact-priority-value small {
+  color: #6a8c80;
+}
+
+.fit-ring > div {
+  background: #fbfff9;
+}
+.fit-ring strong {
+  color: #1a564a;
+  font-size: 11px;
+}
+.fit-ring small {
+  color: #6a8c80;
+}
+
+.compact-priority-detail {
+  border-top: 1px solid #dce8dd;
+  color: #496d62;
+}
+.compact-priority-detail svg {
+  color: #234d4d;
+}
+.compact-priority-detail button {
+  color: #234d4d;
+}
+
+.priority-queue-gradient-top {
+  background: linear-gradient(180deg, rgba(248, 255, 245, 0.98), rgba(248, 255, 245, 0));
+}
+.priority-queue-gradient-bottom {
+  background: linear-gradient(0deg, rgba(240, 247, 235, 0.98), rgba(240, 247, 235, 0));
+}
+
+.priority-queue-sentinel {
+  border-color: #b8d6c4;
+  color: #567b6e;
+}
+
+.priority-queue::-webkit-scrollbar-track {
+  background: #e4efe2;
+}
+.priority-queue::-webkit-scrollbar-thumb {
+  background: #89b39d;
+  border: 2px solid #e4efe2;
+}
+
+/* Trend Card Matching Cohesive Look with Header Green Outline */
+.trend-card {
+  border: 1.5px solid #234d4d;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 90% 0%, rgba(174, 216, 117, 0.25), transparent 36%),
+    linear-gradient(rgba(49, 118, 100, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(49, 118, 100, 0.03) 1px, transparent 1px),
+    linear-gradient(145deg, #fbfff8 0%, #eff7ea 100%);
+  background-size: auto, 24px 24px, 24px 24px, auto;
+  box-shadow: 0 14px 32px rgba(21, 57, 65, 0.12);
+  padding: 16px 20px 14px;
+}
+
+.trend-card .compact-section-label,
+.trend-card .compact-card-header p,
+.trend-card .compact-chart-labels {
+  color: #5a7b70;
+}
+
+.trend-card h2,
+.trend-card .compact-trend-total strong {
+  color: #10484b;
+  font-family: "Fraunces", Georgia, serif;
+}
+
+.trend-card .compact-pill {
+  border: 1px solid #c8ded0;
+  background: #eaf6df;
+  color: #276251;
+}
+
+.trend-card .compact-icon-button {
+  border: 1px solid #c8ded0;
+  background: #fbfff9;
+  color: #2e6955;
+}
+.trend-card .compact-icon-button:hover {
+  background: #10484b;
+  color: #f6ffdf;
+  border-color: #10484b;
+}
+
+.trend-card .compact-trend-total span {
+  color: #2f7e61;
+}
+
+.trend-card .compact-chart-baseline {
+  stroke: rgba(49, 118, 100, 0.2);
+}
+
+.trend-card polyline {
+  stroke: #2e7a68 !important;
+}
+
+.trend-card circle {
+  fill: #d7ef73 !important;
+  stroke: #10484b !important;
+  stroke-width: 2.5px;
+}
+
+.trend-card .compact-chart-explore {
+  color: #286b59;
+}
+
+/* Dialog & Overlays */
+.compact-experience-backdrop {
+  background: rgba(12, 48, 50, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+.compact-experience-dialog {
+  border: 1px solid #c9dfd0;
+  border-radius: 20px;
+  background: #fbfff9;
+  color: #10484b;
+  box-shadow: 0 28px 80px rgba(10, 66, 61, 0.25);
+}
+
+.compact-experience-dialog h2 {
+  color: #10484b;
+}
+
+/* Dock styling integration */
+.compact-dashboard-shell .dock-panel {
+  border: 1px solid rgba(215, 239, 115, 0.28);
+  background: rgba(10, 48, 51, 0.94);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 16px 40px rgba(10, 66, 61, 0.25);
+}
+
+.compact-dashboard-shell .dock-item {
+  color: #b0d4c8;
+}
+
+.compact-dashboard-shell .dock-item:hover {
+  background: rgba(215, 239, 115, 0.15);
+  color: #ffffff;
+}
+
+.compact-dashboard-shell .dock-item-active {
+  background: #d7ef73 !important;
+  color: #0c2b2f !important;
+}
+
+.compact-dashboard-shell .dock-count {
+  background: #d7ef73;
+  color: #0c2b2f;
+}

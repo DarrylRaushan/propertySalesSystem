@@ -1,0 +1,4 @@
+- [x] Map current Source mix labels, values, and colors into an animated donut-chart data model.
+- [x] Add a compact Source mix deep-dive entry point without increasing default dashboard height.
+- [x] Implement animated slice hover, synchronized legend highlighting, and changing center content.
+- [x] Build and verify the Source mix deep-dive at desktop and mobile widths.

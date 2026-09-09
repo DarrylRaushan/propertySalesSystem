@@ -1,0 +1,22 @@
+.property-depth-carousel { outline: none; }
+.property-depth-carousel:focus-visible .property-depth-carousel__viewport { box-shadow: 0 0 0 3px rgba(215, 239, 115, .62); }
+.property-depth-carousel__viewport { position: relative; min-height: 344px; overflow: hidden; border: 1px solid #d4dfd7; border-radius: 18px; background: linear-gradient(135deg, #e6eee7, #d8e5df); perspective: 1200px; transition: box-shadow 160ms ease-out; }
+.property-depth-carousel__stage { position: absolute; inset: 0; transform-style: preserve-3d; }
+.property-depth-carousel__card { position: absolute; top: 50%; left: 43%; width: min(78%, 345px); height: 264px; overflow: hidden; border: 0; border-radius: 15px; background: #1a353f; box-shadow: 0 18px 38px rgba(18, 45, 52, calc(.23 - var(--depth-index) * .035)); cursor: pointer; opacity: var(--card-opacity); pointer-events: auto; transform: translate(-50%, -50%) translateX(calc(var(--depth-index) * 52px)) translateZ(calc(var(--depth-index) * -118px)) rotateY(calc(var(--depth-index) * -14deg)) scale(calc(1 - var(--depth-index) * .045)); transform-style: preserve-3d; transition: transform 420ms cubic-bezier(.23,1,.32,1), opacity 240ms ease-out, filter 420ms ease-out; filter: brightness(calc(1 - var(--depth-index) * .13)) blur(calc(var(--depth-index) * .5px)); }
+.property-depth-carousel__card:hover { filter: brightness(calc(1 - var(--depth-index) * .08)) blur(calc(var(--depth-index) * .3px)); }
+.property-depth-carousel__card.is-active { left: 45%; filter: none; }
+.property-depth-carousel__card img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.property-depth-carousel__shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(15, 35, 42, .04) 35%, rgba(15, 35, 42, .83) 100%); }
+.property-depth-carousel__status { position: absolute; top: 14px; left: 14px; border: 1px solid rgba(255,255,255,.3); border-radius: 999px; background: rgba(20, 49, 57, .78); padding: 5px 9px; color: #f8faf4; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.property-depth-carousel__active-copy { position: absolute; right: 18px; bottom: 16px; left: 18px; color: #f9fbf7; text-align: left; }
+.property-depth-carousel__active-copy b { display: block; font-family: Georgia, serif; font-size: 24px; letter-spacing: -.05em; }
+.property-depth-carousel__active-copy small { display: inline-flex; align-items: center; gap: 4px; margin-top: 5px; color: #dfe9df; font-size: 13px; }
+.property-depth-carousel__controls { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.property-depth-carousel__controls > button { display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid #d6e0d8; border-radius: 9px; background: #fbfcf8; color: #305d63; cursor: pointer; transition: transform 160ms ease-out, border-color 160ms ease-out; }
+.property-depth-carousel__controls > button:hover { border-color: #aabfb0; transform: translateY(-1px); }
+.property-depth-carousel__controls > button:active { transform: scale(.97); }
+.property-depth-carousel__controls > span { min-width: 40px; color: #5c7970; font-size: 12px; font-weight: 800; text-align: center; }
+.property-depth-carousel__dots { display: flex; flex: 1; justify-content: flex-end; gap: 5px; }
+.property-depth-carousel__dots button { width: 8px; height: 8px; border: 0; border-radius: 999px; background: #c5d2c9; padding: 0; cursor: pointer; transition: width 160ms ease-out, background 160ms ease-out; }
+.property-depth-carousel__dots button.is-active { width: 24px; background: #315f61; }
+@media (max-width: 700px) { .property-depth-carousel__viewport { min-height: 288px; }.property-depth-carousel__card { left: 44%; width: min(82%, 298px); height: 225px; transform: translate(-50%, -50%) translateX(calc(var(--depth-index) * 34px)) translateZ(calc(var(--depth-index) * -94px)) rotateY(calc(var(--depth-index) * -13deg)) scale(calc(1 - var(--depth-index) * .055)); }.property-depth-carousel__card.is-active { left: 46%; }.property-depth-carousel__active-copy b { font-size: 20px; }.property-depth-carousel__dots { display: none; } }

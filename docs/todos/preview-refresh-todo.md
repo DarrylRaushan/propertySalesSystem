@@ -1,0 +1,3 @@
+- [x] Confirm the running managed preview includes the latest Sales momentum line-chart source changes.
+- [x] Refresh the managed development preview and invalidate stale preview state if needed.
+- [x] Verify the latest line-chart modal is visible from the Preview panel and report the corrected access path.

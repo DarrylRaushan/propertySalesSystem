@@ -1,0 +1,3 @@
+- [x] List custom non-template UI components preserved from the uploaded project.
+- [x] Identify which custom components are currently used in the compact dashboard and which are no longer rendered by default.
+- [x] Report the component inventory and recommend specific reintegration options.

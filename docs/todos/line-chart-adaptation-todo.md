@@ -1,0 +1,4 @@
+- [x] Identify compatible grid, marker, hover, and projection features from the supplied line-chart reference.
+- [x] Upgrade the animated Sales momentum line chart using the project’s existing local chart system.
+- [x] Preserve the existing analytics modal entry points and compact dashboard height.
+- [x] Build and verify the enhanced line chart at desktop and mobile widths.

@@ -1,0 +1,4 @@
+- [x] Define frontend performance-series data for bookings, revenue, and expected-sales run rate.
+- [x] Add an on-demand Performance mix control within the animated Sales momentum modal.
+- [x] Implement animated booking bars with revenue and run-rate overlays in the composed chart.
+- [x] Build and verify the composed chart at desktop and mobile widths without changing the default dashboard height.

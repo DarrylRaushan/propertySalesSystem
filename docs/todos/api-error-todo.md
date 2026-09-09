@@ -1,0 +1,4 @@
+- [ ] Inspect the tRPC client URL, server adapter, Vite/server fallback routes, and deployment configuration.
+- [ ] Reproduce the failing API request and confirm which route is returning the HTML document.
+- [ ] Correct the API base path or server route so tRPC requests return JSON responses.
+- [ ] Rebuild, restart, and verify the dashboard without API query errors in the unpublished preview.

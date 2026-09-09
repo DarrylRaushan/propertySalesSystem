@@ -1,0 +1,218 @@
+.property-detail-view {
+  --terrain-deep: #0d3f43;
+  --terrain-mid: #1c605e;
+  --terrain-lime: #d7ef73;
+  --terrain-mist: #e6f0df;
+}
+
+.property-detail-view::before {
+  position: absolute;
+  z-index: -1;
+  inset: 116px -12px 2px;
+  border: 1px solid rgba(27, 91, 85, .12);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 75% 8%, rgba(215, 239, 115, .2), transparent 26%),
+    linear-gradient(135deg, rgba(17, 67, 69, .08), rgba(82, 127, 95, .03));
+  content: "";
+  pointer-events: none;
+}
+
+.property-dossier-shell {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  border-color: #1f6661;
+  background: var(--terrain-deep);
+  box-shadow: 0 18px 42px rgba(10, 54, 57, .18), 0 1px 0 rgba(215, 239, 115, .2) inset;
+}
+
+.property-dossier-visual {
+  background:
+    linear-gradient(rgba(211, 239, 209, .075) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(211, 239, 209, .075) 1px, transparent 1px),
+    radial-gradient(circle at 76% 5%, rgba(215, 239, 115, .39), transparent 27%),
+    linear-gradient(145deg, #0d4449 0%, #135754 54%, #277162 100%);
+  background-size: 30px 30px, 30px 30px, auto, auto;
+}
+
+.property-dossier-visual::before {
+  top: -92px;
+  right: -76px;
+  width: 290px;
+  height: 290px;
+  border-color: rgba(215, 239, 115, .22);
+}
+
+.property-dossier-visual::after {
+  background: radial-gradient(ellipse at center, rgba(189, 222, 137, .18), transparent 66%);
+  border-top-color: rgba(215, 239, 115, .22);
+}
+
+.property-dossier-viewer > div,
+.property-dossier-viewer > img {
+  border-color: rgba(215, 239, 115, .48);
+  box-shadow: 0 14px 26px rgba(4, 39, 42, .3);
+}
+
+.property-dossier-visual-bar,
+.property-dossier-visual-caption {
+  color: #dceccd;
+}
+
+.property-dossier-visual-bar b,
+.property-dossier-visual-index {
+  color: var(--terrain-lime);
+}
+
+.property-dossier-panel {
+  justify-content: flex-start;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(215, 239, 115, .17), transparent 28%),
+    linear-gradient(148deg, #12484a 0%, #1d5d58 60%, #2b7463 100%);
+}
+
+.property-dossier-panel::after {
+  right: -46px;
+  bottom: -66px;
+  border-color: rgba(215, 239, 115, .2);
+}
+
+.property-dossier-label,
+.property-dossier-title-block .property-developer,
+.property-dossier-panel .property-detail-metrics small {
+  color: #bbd3bd;
+}
+
+.property-dossier-price-line {
+  border-bottom-color: rgba(225, 244, 220, .22);
+}
+
+.property-dossier-price-line .property-price {
+  color: #f8fff0;
+  font-size: 27px;
+  letter-spacing: -.07em;
+}
+
+.property-dossier-status-chip {
+  border-color: rgba(215, 239, 115, .6);
+  background: rgba(215, 239, 115, .16);
+  color: #efffbc;
+  padding: 5px 9px;
+  font-size: 11px;
+}
+
+.property-dossier-status-chip i {
+  background: var(--terrain-lime);
+  box-shadow: 0 0 0 3px rgba(215, 239, 115, .18);
+}
+
+.property-dossier-title-block h3 {
+  color: #fbfff6;
+  font-size: 30px;
+}
+
+.property-dossier-title-block .property-detail-location {
+  color: #d3e5d2;
+  font-size: 13px;
+}
+
+.property-detail-reference-image {
+  height: 108px;
+  margin-bottom: 13px;
+  border-color: rgba(215, 239, 115, .48);
+  box-shadow: 0 6px 16px rgba(7, 47, 49, .24);
+}
+
+.property-detail-reference-image img {
+  object-position: center;
+}
+
+.property-dossier-panel .property-detail-metrics span {
+  min-height: 60px;
+  border-color: rgba(215, 239, 115, .22);
+  background: rgba(5, 52, 54, .28);
+}
+
+.property-dossier-panel .property-detail-metrics svg {
+  color: var(--terrain-lime);
+}
+
+.property-dossier-panel .property-detail-metrics b {
+  color: #f4fff0;
+  font-size: 13px;
+}
+
+.property-dossier-panel .property-detail-metrics small {
+  font-size: 11px;
+}
+
+.property-primary-action {
+  border-color: var(--terrain-lime);
+  background: var(--terrain-lime);
+  color: #164147;
+}
+
+.property-primary-action:hover {
+  background: #ecff9e;
+  box-shadow: 0 7px 16px rgba(215, 239, 115, .22);
+}
+
+.property-secondary-action {
+  border-color: rgba(232, 249, 225, .42);
+  background: rgba(3, 47, 50, .26);
+  color: #f0f8e8;
+}
+
+.property-secondary-action:hover {
+  border-color: var(--terrain-lime);
+  background: rgba(215, 239, 115, .14);
+}
+
+.property-detail-heading h2 {
+  color: #163f42;
+}
+
+.property-dossier-eyebrow,
+.property-dossier-topbar-meta b {
+  color: #497259;
+}
+
+@media (max-width: 700px) {
+  .property-dossier-price-line .property-price {
+    font-size: 21px;
+  }
+
+  .property-dossier-title-block h3 {
+    font-size: 22px;
+  }
+
+  .property-dossier-title-block .property-detail-location {
+    font-size: 12px;
+  }
+
+  .property-dossier-status-chip {
+    padding: 4px 7px;
+    font-size: 10px;
+  }
+
+  .property-dossier-panel .property-detail-metrics span {
+    min-height: 43px;
+  }
+
+  .property-detail-reference-image {
+    display: none;
+  }
+
+  .property-dossier-panel .property-detail-metrics b {
+    font-size: 11px;
+  }
+
+  .property-dossier-panel .property-detail-metrics small {
+    font-size: 9px;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1050px) {
+  .property-dossier-shell {
+    grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+  }
+}

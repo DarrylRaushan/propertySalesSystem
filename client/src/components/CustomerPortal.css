@@ -1,0 +1,164 @@
+/* Editorial Swiss Modernism & Terrain Theme for Customer Portal:
+   Deep Pine Teal (#153941, #234d4d), Warm Paper (#f3f5ef, #fbfff9), Signal Lime (#d7ef73), Fraunces Serifs */
+
+.customer-portal-root {
+  --ink: #173440;
+  --ink-deep: #10484b;
+  --ink-soft: #567177;
+  --muted: #879793;
+  --line: #dfe6df;
+  --line-moss: #234d4d;
+  --paper: #fbfff9;
+  --paper-warm: #fffefa;
+  --canvas: #f3f5ef;
+  --lime: #d7ef73;
+  --lime-soft: #eaf6df;
+  --pine-gradient: linear-gradient(125deg, #153941 0%, #234d4d 51%, #3b6b5a 100%);
+  --shadow: 0 12px 32px rgba(24, 54, 60, .07);
+  --shadow-hover: 0 16px 36px rgba(16, 72, 75, .14);
+
+  min-height: 100vh;
+  background: radial-gradient(circle at 92% -5%, rgba(179, 222, 118, 0.28), transparent 28%), linear-gradient(180deg, #f9fff7 0%, #eef7eb 100%);
+  color: var(--ink);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+.customer-portal-serif {
+  font-family: "Fraunces", Georgia, serif !important;
+  letter-spacing: -0.04em;
+}
+
+/* Terrain luxury cards matching Agent dashboard */
+.terrain-card {
+  background: #fbfff9;
+  border: 1.5px solid #234d4d;
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(21, 57, 65, 0.08);
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out, border-color 180ms ease-out;
+  overflow: hidden;
+}
+
+.terrain-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 36px rgba(16, 72, 75, 0.14);
+  border-color: #10484b;
+}
+
+/* Hero banner matching CompactDashboard.css */
+.customer-terrain-hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+  overflow: hidden;
+  border: 1.5px solid rgba(215, 239, 115, 0.35);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 84% 0%, rgba(215, 239, 115, 0.38), transparent 32%),
+    linear-gradient(rgba(215, 239, 115, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(215, 239, 115, 0.04) 1px, transparent 1px),
+    linear-gradient(125deg, #153941 0%, #234d4d 51%, #3b6b5a 100%);
+  background-size: auto, 26px 26px, 26px 26px, auto;
+  padding: 32px 36px;
+  color: #f6f8ef;
+  position: relative;
+  box-shadow: 0 14px 36px rgba(10, 48, 51, 0.15);
+}
+
+.customer-terrain-hero::after {
+  position: absolute;
+  right: -5%;
+  bottom: -90%;
+  width: 420px;
+  height: 420px;
+  border: 1px solid rgba(245, 250, 233, 0.18);
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+}
+
+.customer-hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #d7ef73;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+/* Terrain Navbar */
+.customer-terrain-nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid #d2e5d4;
+  background: rgba(249, 255, 247, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* Category Filter Pill */
+.terrain-pill {
+  padding: 0.45rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition: all 0.18s ease;
+  border: 1.5px solid #234d4d;
+  background: #fbfff9;
+  color: #10484b;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.terrain-pill:hover {
+  background: #eaf6df;
+  border-color: #10484b;
+  color: #10484b;
+  transform: translateY(-1px);
+}
+
+.terrain-pill.active {
+  background: #234d4d;
+  color: #d7ef73;
+  border-color: #234d4d;
+  box-shadow: 0 4px 12px rgba(35, 77, 77, 0.25);
+}
+
+/* Property photo hover */
+.property-image-container {
+  overflow: hidden;
+  position: relative;
+}
+
+.property-image-container img {
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.property-image-container:hover img {
+  transform: scale(1.05);
+}
+
+/* Signal Lime Accent Badges */
+.badge-lime {
+  background: #d7ef73;
+  color: #153941;
+  font-weight: 800;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.badge-pine {
+  background: rgba(21, 57, 65, 0.88);
+  backdrop-filter: blur(8px);
+  color: #f6ffdf;
+  border: 1px solid rgba(215, 239, 115, 0.3);
+  font-weight: 700;
+  font-size: 10.5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+}

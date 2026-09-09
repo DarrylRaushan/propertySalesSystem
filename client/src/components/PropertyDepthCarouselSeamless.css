@@ -1,0 +1,6 @@
+.property-depth-carousel__viewport { touch-action: pan-y; cursor: grab; }
+.property-depth-carousel__viewport.is-dragging { cursor: grabbing; }
+.property-depth-carousel__stage { transform: none !important; transition: none !important; }
+.property-depth-carousel__card { will-change: transform, opacity, filter; }
+.property-depth-carousel__viewport.is-dragging .property-depth-carousel__card { transition: opacity 90ms linear, filter 90ms linear !important; }
+@media (prefers-reduced-motion: reduce) { .property-depth-carousel__card { transition: none !important; } }
