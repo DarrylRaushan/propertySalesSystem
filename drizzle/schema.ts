@@ -169,12 +169,39 @@ export const propertyViewings = sqliteTable("property_viewings", {
   date: text("date").notNull(),
   timeSlot: text("timeSlot").notNull(),
   status: text("status").default("Confirmed").notNull(), // Confirmed, Pending, Cancelled, Completed
+  cancelledVia: text("cancelledVia"), // "whatsapp", "portal", "agent"
+  cancellationReason: text("cancellationReason"),
+  whatsappNotificationSent: integer("whatsappNotificationSent", { mode: "boolean" }).default(false).notNull(),
+  googleCalendarEventId: text("googleCalendarEventId"),
+  googleCalendarHtmlLink: text("googleCalendarHtmlLink"),
   notes: text("notes"),
   createdAt: text("createdAt").default("CURRENT_TIMESTAMP").notNull(),
 });
 
 export type PropertyViewing = typeof propertyViewings.$inferSelect;
 export type InsertPropertyViewing = typeof propertyViewings.$inferInsert;
+
+/**
+ * 7b. WhatsApp Messages - Audit & Communication Log
+ */
+export const whatsappMessages = sqliteTable("whatsapp_messages", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  viewingId: integer("viewingId").references(() => propertyViewings.id, { onDelete: "set null" }),
+  customerAccountId: integer("customerAccountId").references(() => customerAccounts.id, { onDelete: "set null" }),
+  leadId: integer("leadId").references(() => leads.id, { onDelete: "set null" }),
+  phone: text("phone").notNull(),
+  senderName: text("senderName"),
+  direction: text("direction").notNull(), // "incoming" | "outgoing"
+  messageType: text("messageType").notNull(), // "booking_confirmation", "cancellation_request", "cancellation_confirmation", "reminder", "status_query", "general_chat"
+  message: text("message").notNull(),
+  status: text("status").default("sent").notNull(), // "sent", "delivered", "read", "received", "failed"
+  parsedAction: text("parsedAction"), // "cancel_viewing", "confirm_viewing", "query_status", "general"
+  rawPayload: text("rawPayload"),
+  createdAt: text("createdAt").default("CURRENT_TIMESTAMP").notNull(),
+});
+
+export type WhatsAppMessage = typeof whatsappMessages.$inferSelect;
+export type InsertWhatsAppMessage = typeof whatsappMessages.$inferInsert;
 
 /**
  * 8. Pipeline Stages - Sales funnel metrics (brokerage or agent-scoped)

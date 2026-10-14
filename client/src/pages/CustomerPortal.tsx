@@ -36,16 +36,27 @@ import {
   Plus,
   Trash2,
   Lock,
+  History,
+  X,
+  CalendarPlus,
+  Scale,
+  Mic,
+  Volume2,
+  UserCheck,
 } from "lucide-react";
 import { useAuth, PROPERTY_AGENTS, CustomerUser } from "@/contexts/AuthContext";
 import AuthModal from "@/components/AuthModal";
 import CustomerPropertyDetailModal from "@/components/CustomerPropertyDetailModal";
 import CustomerViewingModal from "@/components/CustomerViewingModal";
+import PropertyComparisonModal from "@/components/PropertyComparisonModal";
 import PropertyAccordionGallery from "@/components/PropertyAccordionGallery";
 import CustomerProfileTab from "@/components/CustomerProfileTab";
+import InteractiveFinancialRoiCalculator from "@/components/InteractiveFinancialRoiCalculator";
+import ConciergeVoiceMode from "@/components/ConciergeVoiceMode";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
+import { buildGoogleCalendarUrl } from "@/lib/calendarUtils";
 import "@/components/CustomerPortal.css";
 import "@/components/PropertyAccordionGallery.css";
 import "@/components/PropertiesFeaturedGallery.css";
@@ -130,6 +141,7 @@ export default function CustomerPortal() {
     isPropertySaved,
     bookedViewings,
     cancelViewing,
+    dismissViewing,
     quickLogin,
   } = useAuth();
 
@@ -147,9 +159,29 @@ export default function CustomerPortal() {
   // Accordion state for Featured For You section
   const [accordionActiveIndex, setAccordionActiveIndex] = useState(0);
 
-  // Modals
+  // Modals & Tracker States
   const [detailModalProperty, setDetailModalProperty] = useState<any | null>(null);
   const [viewingModalProperty, setViewingModalProperty] = useState<any | null>(null);
+  const [reschedulingViewing, setReschedulingViewing] = useState<any | null>(null);
+  const [historyViewing, setHistoryViewing] = useState<any | null>(null);
+  const [trackerFilter, setTrackerFilter] = useState<"active" | "cancelled">("active");
+
+  // Comparison Modal States
+  const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
+  const [selectedComparisonIds, setSelectedComparisonIds] = useState<number[]>([]);
+
+  const toggleComparisonSelection = (propId: number) => {
+    setSelectedComparisonIds((prev) => {
+      if (prev.includes(propId)) {
+        return prev.filter((id) => id !== propId);
+      }
+      if (prev.length >= 3) {
+        toast.info("Maximum 3 properties can be compared simultaneously.");
+        return prev;
+      }
+      return [...prev, propId];
+    });
+  };
 
   // Mortgage Calculator State
   const [calcPrice, setCalcPrice] = useState<number>(2500000);
@@ -175,7 +207,7 @@ export default function CustomerPortal() {
 
   const defaultWelcomeMsg = {
     role: "assistant" as const,
-    text: `Hello${activeCustomer ? `, ${activeCustomer.name.split(" ")[0]}` : ""}! I am your AI Property Concierge. Ask me anything about our property listings, rental yield projections, foreign buyer guidelines (MM2H/EPU), mortgage repayment calculations, or prime locations in Malaysia.`,
+    text: `Good day${activeCustomer ? `, ${activeCustomer.name.split(" ")[0]}` : ""}! I am your Personal Butler & Property Concierge. Ask me anything about our luxury property listings, rental yield projections, foreign buyer guidelines (MM2H/EPU), mortgage calculations, or prime locations in Malaysia.`,
   };
 
   function createConciergeConvo(): ConciergeConvo {
@@ -213,6 +245,7 @@ export default function CustomerPortal() {
   });
   const [showConciergeList, setShowConciergeList] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
+  const [conciergeMode, setConciergeMode] = useState<"chat" | "voice">("chat");
 
   const activeConciergeConvo =
     conciergeConvos.find((c) => c.id === activeConciergeId) ?? conciergeConvos[0];
@@ -446,40 +479,20 @@ export default function CustomerPortal() {
     return CUSTOMER_PROPERTIES.filter((p) => savedPropertyIds.includes(p.id));
   }, [savedPropertyIds]);
 
-  // Mortgage calculations
-  const downpaymentAmount = Math.round(calcPrice * (calcDownpaymentPercent / 100));
-  const loanPrincipal = calcPrice - downpaymentAmount;
-  const monthlyRate = calcInterestRate / 100 / 12;
-  const totalPayments = calcTenureYears * 12;
-  const monthlyRepayment = Math.round(
-    monthlyRate > 0
-      ? (loanPrincipal * (monthlyRate * Math.pow(1 + monthlyRate, totalPayments))) /
-          (Math.pow(1 + monthlyRate, totalPayments) - 1)
-      : loanPrincipal / totalPayments
-  );
-  const totalRepayment = monthlyRepayment * totalPayments;
-  const totalInterest = Math.max(0, totalRepayment - loanPrincipal);
-  const minRecommendedIncome = Math.round(monthlyRepayment / 0.6); // 60% DSR
-
-  // Malaysian MOT Stamp Duty Calculation
-  const stampDuty = useMemo(() => {
-    let price = calcPrice;
-    let duty = 0;
-    if (price > 1000000) {
-      duty += (price - 1000000) * 0.04;
-      price = 1000000;
+  // Target properties for the comparison matrix
+  const comparisonTargetProperties = useMemo(() => {
+    if (selectedComparisonIds.length >= 2) {
+      return CUSTOMER_PROPERTIES.filter((p) => selectedComparisonIds.includes(p.id));
     }
-    if (price > 500000) {
-      duty += (price - 500000) * 0.03;
-      price = 500000;
+    if (shortlistedProperties.length >= 2) {
+      return shortlistedProperties.slice(0, 3);
     }
-    if (price > 100000) {
-      duty += (price - 100000) * 0.02;
-      price = 100000;
+    if (shortlistedProperties.length === 1 && CUSTOMER_PROPERTIES.length > 1) {
+      const second = CUSTOMER_PROPERTIES.find((p) => p.id !== shortlistedProperties[0].id);
+      return second ? [shortlistedProperties[0], second] : [shortlistedProperties[0]];
     }
-    duty += price * 0.01;
-    return Math.round(duty);
-  }, [calcPrice]);
+    return CUSTOMER_PROPERTIES.slice(0, 2);
+  }, [selectedComparisonIds, shortlistedProperties]);
 
   // Handle actions
   const handleSaveToggle = (e: React.MouseEvent, propId: number) => {
@@ -531,19 +544,17 @@ export default function CustomerPortal() {
     },
   });
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputMessage.trim() || isAiThinking) return;
+  const sendConciergeMessage = (userText: string) => {
+    if (!userText.trim() || isAiThinking) return;
 
     if (isGuestLimitReached) {
       openAuthModal("You have used your 3 free guest questions. Sign in to unlock unlimited AI inquiries and save your conversations!");
       return;
     }
 
-    const userText = inputMessage.trim();
-    setInputMessage("");
+    const trimmed = userText.trim();
     const convoId = activeConciergeId;
-    appendConciergeMsg(convoId, { role: "user", text: userText });
+    appendConciergeMsg(convoId, { role: "user", text: trimmed });
     setIsAiThinking(true);
 
     const currentConvo = conciergeConvos.find((c) => c.id === convoId);
@@ -553,7 +564,7 @@ export default function CustomerPortal() {
         role: m.role as "user" | "assistant",
         content: m.text,
       })),
-      { role: "user" as const, content: userText },
+      { role: "user" as const, content: trimmed },
     ];
 
     aiChatMutation.mutate(
@@ -562,7 +573,7 @@ export default function CustomerPortal() {
         onError: () => {
           // Local AI fallback responses
           let botReply = "";
-          const lower = userText.toLowerCase();
+          const lower = trimmed.toLowerCase();
 
           if (lower.includes("foreign") || lower.includes("mm2h") || lower.includes("epu") || lower.includes("expat")) {
             botReply = `**Malaysian Foreign Purchaser Guidelines (2024–2025):**\n\n- **Kuala Lumpur (Strata Residences)**: Minimum purchase price of **RM 1,000,000**.\n- **Selangor (Landed / Strata)**: Minimum threshold of **RM 2,000,000**.\n- **State Consent (EPU)**: Foreign buyers require State Authority Consent. Consent fee in KL is approx. RM 1,000–RM 2,000; in Selangor it is 2% of the purchase price.\n- **MM2H Visa Holders**: Eligible for preferential financing margins (up to 70%–80%).`;
@@ -573,7 +584,7 @@ export default function CustomerPortal() {
           } else if (lower.includes("klcc") || lower.includes("location") || lower.includes("damansara") || lower.includes("mont kiara") || lower.includes("bangsar")) {
             botReply = `**Prime Malaysian Neighborhood Insights:**\n\n- **KLCC**: The financial & diplomatic core. Premium high-rise luxury, walking distance to Petronas Twin Towers, MRT Putrajaya Line, and world-class retail.\n- **Damansara Heights**: Established high-net-worth enclave known as the "Beverly Hills of KL". Superb capital appreciation and leafy tranquility.\n- **Mont Kiara**: Top choice for international expat families, surrounded by Garden International School, Mont Kiara International School, and retail dining hubs.\n- **Bangsar**: Chic urban living with vibrant cafes, luxury low-density condominiums, and rapid access to KL Sentral transportation hub.`;
           } else {
-            botReply = `I am analyzing your inquiry regarding **"${userText}"** against our live property listings, market transaction benchmarks, and Malaysian real estate regulations.\n\nFeel free to ask me for:\n- Specific property pricing, floor sizes, and bedroom configurations\n- Rental yield calculations and capital appreciation projections\n- Legal fees and tiered MOT Stamp Duty estimates\n- Comparison between any active residences in our marketplace`;
+            botReply = `I am analyzing your inquiry regarding **"${trimmed}"** against our live property listings, market transaction benchmarks, and Malaysian real estate regulations.\n\nFeel free to ask me for:\n- Specific property pricing, floor sizes, and bedroom configurations\n- Rental yield calculations and capital appreciation projections\n- Legal fees and tiered MOT Stamp Duty estimates\n- Comparison between any active residences in our marketplace`;
           }
 
           appendConciergeMsg(convoId, { role: "assistant", text: botReply });
@@ -581,6 +592,14 @@ export default function CustomerPortal() {
         },
       }
     );
+  };
+
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputMessage.trim() || isAiThinking) return;
+    const userText = inputMessage.trim();
+    setInputMessage("");
+    sendConciergeMessage(userText);
   };
 
   return (
@@ -736,9 +755,9 @@ export default function CustomerPortal() {
               >
                 <Calendar className="size-3.5 shrink-0" />
                 <span>Tour Tracker</span>
-                {bookedViewings.length > 0 && (
+                {bookedViewings.filter((v) => v.status !== "Cancelled").length > 0 && (
                   <span className={cn("analytics-tab-badge", activeTab === "viewings" ? "bg-[#d7ef73] text-[#10484b]" : "bg-[#e8f2e6] text-[#3b6b55]")}>
-                    {bookedViewings.length}
+                    {bookedViewings.filter((v) => v.status !== "Cancelled").length}
                   </span>
                 )}
               </button>
@@ -1124,8 +1143,19 @@ export default function CustomerPortal() {
               {shortlistedProperties.length > 0 && (
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#fbfff9] text-[#10484b] border-[1.5px] border-[#234d4d]">
-                    {shortlistedProperties.length} Properties Shortlisted
+                    {shortlistedProperties.length} Properties Saved
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsComparisonModalOpen(true)}
+                    className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#234d4d] hover:bg-[#10484b] text-[#d7ef73] text-xs font-black shadow-md border border-[#234d4d] transition active:scale-95"
+                  >
+                    <Scale size={14} />
+                    <span>Compare Matrix</span>
+                    <span className="bg-[#d7ef73] text-[#10484b] text-[10px] font-black px-1.5 py-0.2 rounded-full">
+                      {selectedComparisonIds.length > 0 ? selectedComparisonIds.length : Math.min(shortlistedProperties.length, 3)}
+                    </span>
+                  </button>
                 </div>
               )}
             </div>
@@ -1150,15 +1180,64 @@ export default function CustomerPortal() {
               </div>
             ) : (
               <div className="space-y-6">
+                {/* Interactive Comparison Bar */}
+                <div className="terrain-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-[#eaf6df] via-[#f4faea] to-[#eaf6df] border border-[#234d4d]/30 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#234d4d] text-[#d7ef73] flex items-center justify-center shrink-0 shadow-md">
+                      <Scale size={18} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-[#10484b] customer-portal-serif flex items-center gap-1.5">
+                        <span>Side-by-Side Property Comparison Matrix</span>
+                        <span className="text-[10px] bg-[#d7ef73] text-[#10484b] font-extrabold px-1.5 py-0.2 rounded">
+                          Interactive
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-[#567177] font-medium mt-0.5">
+                        {selectedComparisonIds.length > 0
+                          ? `${selectedComparisonIds.length} properties selected (Max 3). Click 'Launch Comparison' to view deep analytics.`
+                          : "Select 2 or 3 residences using the checkboxes below to benchmark yields, monthly loan repayments, and luxury amenities."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {selectedComparisonIds.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedComparisonIds([])}
+                        className="text-xs font-bold text-[#567177] hover:text-rose-600 px-2 underline"
+                      >
+                        Clear ({selectedComparisonIds.length})
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsComparisonModalOpen(true)}
+                      className="px-4 py-2 bg-[#234d4d] hover:bg-[#10484b] text-[#d7ef73] rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-sm border border-[#234d4d] active:scale-95"
+                    >
+                      <Scale size={14} />
+                      <span>Compare {selectedComparisonIds.length ? `${selectedComparisonIds.length} Contenders` : "Residences"}</span>
+                      <ArrowRight size={13} />
+                    </button>
+                  </div>
+                </div>
+
                 {/* Side-by-Side Comparison Matrix Table */}
                 <div className="terrain-card overflow-x-auto p-5">
-                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#234d4d] mb-4">
-                    Side-by-Side Comparison Matrix
-                  </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#234d4d]">
+                      Side-by-Side Comparison Matrix
+                    </h3>
+                    <span className="text-[11px] text-[#567177] font-medium">
+                      Select checkboxes to compare 2–3 properties in detail
+                    </span>
+                  </div>
 
-                  <table className="w-full text-left text-xs border-collapse min-w-[700px]">
+                  <table className="w-full text-left text-xs border-collapse min-w-[750px]">
                     <thead>
                       <tr className="border-b-[1.5px] border-[#234d4d] text-[#10484b] font-bold">
+                        <th className="py-3 px-2 w-10 text-center">Compare</th>
                         <th className="py-3 px-3">Property</th>
                         <th className="py-3 px-3">Developer</th>
                         <th className="py-3 px-3">Location</th>
@@ -1173,9 +1252,25 @@ export default function CustomerPortal() {
                       {shortlistedProperties.map((p) => {
                         const sizeNum = parseInt(p.size) || 1200;
                         const psf = Math.round(p.price / sizeNum);
+                        const isChecked = selectedComparisonIds.includes(p.id);
 
                         return (
-                          <tr key={p.id} className="hover:bg-[#f4faea]/80 transition">
+                          <tr
+                            key={p.id}
+                            className={`transition cursor-pointer ${
+                              isChecked ? "bg-[#eaf6df]/90 font-medium" : "hover:bg-[#f4faea]/80"
+                            }`}
+                            onClick={() => toggleComparisonSelection(p.id)}
+                          >
+                            <td className="py-3 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => toggleComparisonSelection(p.id)}
+                                className="w-4 h-4 rounded text-[#234d4d] accent-[#234d4d] cursor-pointer"
+                                title="Select for comparison"
+                              />
+                            </td>
                             <td className="py-3 px-3">
                               <div className="flex items-center gap-2.5">
                                 <img
@@ -1213,15 +1308,17 @@ export default function CustomerPortal() {
                                 {p.yield}
                               </span>
                             </td>
-                            <td className="py-3 px-3 text-right">
+                            <td className="py-3 px-3 text-right" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center justify-end gap-1.5">
                                 <button
+                                  type="button"
                                   onClick={() => handleBookViewingClick(p)}
                                   className="px-3 py-1 bg-[#234d4d] hover:bg-[#10484b] text-[#d7ef73] rounded-lg text-[11px] font-bold border border-[#234d4d]"
                                 >
                                   Book Tour
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={(e) => handleSaveToggle(e, p.id)}
                                   className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg"
                                   title="Remove"
@@ -1267,15 +1364,33 @@ export default function CustomerPortal() {
                           RM {prop.price.toLocaleString()}
                         </span>
 
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleBookViewingClick(prop);
-                          }}
-                          className="px-3.5 py-1.5 bg-[#234d4d] text-[#d7ef73] rounded-xl text-xs font-bold border border-[#234d4d]"
-                        >
-                          Book Tour
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleComparisonSelection(prop.id);
+                            }}
+                            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition ${
+                              selectedComparisonIds.includes(prop.id)
+                                ? "bg-[#d7ef73] text-[#10484b] border-[#10484b]/30 shadow-sm"
+                                : "bg-[#fbfff9] text-[#234d4d] border-[#234d4d]/30 hover:bg-[#eaf6df]"
+                            }`}
+                          >
+                            <Scale size={12} className="inline mr-1" />
+                            {selectedComparisonIds.includes(prop.id) ? "Selected" : "Compare"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleBookViewingClick(prop);
+                            }}
+                            className="px-3.5 py-1.5 bg-[#234d4d] hover:bg-[#10484b] text-[#d7ef73] rounded-xl text-xs font-bold border border-[#234d4d] transition"
+                          >
+                            Book Tour
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1285,6 +1400,9 @@ export default function CustomerPortal() {
           </div>
         )}
 
+        {/* ========================================================================= */}
+        {/* TAB 3: TOUR TRACKER & BOOKED VIEWINGS                                       */}
+        {/* ========================================================================= */}
         {/* ========================================================================= */}
         {/* TAB 3: TOUR TRACKER & BOOKED VIEWINGS                                       */}
         {/* ========================================================================= */}
@@ -1300,16 +1418,120 @@ export default function CustomerPortal() {
                 </p>
               </div>
 
-              <button
-                onClick={() => setViewingModalProperty(CUSTOMER_PROPERTIES[0])}
-                className="px-4 py-2 bg-[#234d4d] hover:bg-[#10484b] text-[#d7ef73] rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm border border-[#234d4d]"
-              >
-                <Calendar size={14} />
-                + Schedule New Tour
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setViewingModalProperty(CUSTOMER_PROPERTIES[0])}
+                  className="px-4 py-2 bg-[#234d4d] hover:bg-[#10484b] text-[#d7ef73] rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm border border-[#234d4d]"
+                >
+                  <Calendar size={14} />
+                  + Schedule New Tour
+                </button>
+              </div>
             </div>
 
-            {bookedViewings.length === 0 ? (
+            {/* WhatsApp Two-Way Integration Status Banner */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-[#e7fedb] via-[#f0fbf0] to-[#eaf6df] border border-[#25D366]/40 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-full bg-[#25D366] text-white flex items-center justify-center font-bold shrink-0 shadow-sm">
+                  <MessageSquare size={18} className="fill-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-xs font-bold text-[#075E54]">
+                      WhatsApp Live Two-Way Sync Active
+                    </h4>
+                    <span className="px-2 py-0.5 rounded-full bg-[#25D366]/20 text-[#075E54] text-[10px] font-black uppercase tracking-wider">
+                      Connected
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#2c5344] mt-0.5 font-medium">
+                    All tours are synced with <strong>{activeCustomer?.phone || "+60 12-882 1099"}</strong>. If you can't make your appointment, simply text <strong>CANCEL</strong> on WhatsApp to auto-update this portal.
+                  </p>
+                </div>
+              </div>
+
+              <a
+                href="#whatsapp-chat"
+                onClick={(e) => {
+                  e.preventDefault();
+                  // Trigger widget opening by dispatching custom event or clicking launcher
+                  const btn = document.querySelector('button[title*="WhatsApp"]') as HTMLButtonElement;
+                  if (btn) btn.click();
+                }}
+                className="px-3.5 py-1.5 bg-[#075E54] hover:bg-[#128C7E] text-[#d7ef73] text-xs font-extrabold rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm shrink-0 border border-[#075E54]"
+              >
+                <span>Open WhatsApp Chat</span>
+                <ChevronRight size={14} />
+              </a>
+            </div>
+
+            {/* Segment pills — Upcoming vs History */}
+            {(() => {
+              const activeCount = bookedViewings.filter((v) => v.status !== "Cancelled").length;
+              const cancelledCount = bookedViewings.filter((v) => v.status === "Cancelled").length;
+              return (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTrackerFilter("active")}
+                      className={`terrain-pill ${
+                        trackerFilter === "active" ? "active" : ""
+                      }`}
+                    >
+                      <Calendar size={12} className="inline-block mr-1" />
+                      Upcoming Tours
+                      {activeCount > 0 && (
+                        <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                          trackerFilter === "active"
+                            ? "bg-[#d7ef73] text-[#10484b]"
+                            : "bg-[#e8f2e6] text-[#3b6b55]"
+                        }`}>
+                          {activeCount}
+                        </span>
+                      )}
+                    </button>
+                    {cancelledCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setTrackerFilter("cancelled")}
+                        className={`terrain-pill ${
+                          trackerFilter === "cancelled" ? "active" : ""
+                        }`}
+                      >
+                        <History size={12} className="inline-block mr-1" />
+                        Cancelled History
+                        <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                          trackerFilter === "cancelled"
+                            ? "bg-rose-200 text-rose-800"
+                            : "bg-rose-100 text-rose-600"
+                        }`}>
+                          {cancelledCount}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Clear All Cancelled button — only shown on cancelled tab */}
+                  {trackerFilter === "cancelled" && cancelledCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const cancelled = bookedViewings.filter((v) => v.status === "Cancelled");
+                        await Promise.all(cancelled.map((v) => dismissViewing(v.id)));
+                        setTrackerFilter("active");
+                      }}
+                      className="px-3 py-1.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl transition flex items-center gap-1.5"
+                    >
+                      <Trash2 size={12} />
+                      Clear All Cancelled History
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
+
+            {bookedViewings.length === 0 || bookedViewings.filter((v) => v.status !== "Cancelled").length === 0 && trackerFilter === "active" ? (
               <div className="text-center py-16 terrain-card p-8 space-y-4">
                 <div className="w-14 h-14 bg-[#eaf6df] text-[#234d4d] rounded-full flex items-center justify-center mx-auto border border-[#234d4d]">
                   <Calendar size={28} />
@@ -1320,6 +1542,18 @@ export default function CustomerPortal() {
                 <p className="text-xs text-[#567177] max-w-sm mx-auto">
                   Select any signature residence from our marketplace to arrange a private one-on-one walkthrough.
                 </p>
+                {bookedViewings.filter((v) => v.status === "Cancelled").length > 0 && (
+                  <p className="text-[11px] text-[#8faaaa] mt-1">
+                    You have {bookedViewings.filter((v) => v.status === "Cancelled").length} cancelled tour{bookedViewings.filter((v) => v.status === "Cancelled").length > 1 ? "s" : ""} in your{" "}
+                    <button
+                      className="underline hover:text-[#234d4d] transition"
+                      onClick={() => setTrackerFilter("cancelled")}
+                    >
+                      history
+                    </button>
+                    .
+                  </p>
+                )}
                 <button
                   onClick={() => setActiveTab("explore")}
                   className="px-4 py-2 bg-[#234d4d] text-[#d7ef73] rounded-xl text-xs font-bold border border-[#234d4d]"
@@ -1329,94 +1563,235 @@ export default function CustomerPortal() {
               </div>
             ) : (
               <div className="space-y-4">
-                {bookedViewings.map((viewing) => (
-                  <div
-                    key={viewing.id}
-                    className="terrain-card p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-5"
-                  >
-                    <div className="flex items-start gap-4">
-                      {viewing.propertyImage && (
-                        <img
-                          src={viewing.propertyImage}
-                          alt={viewing.propertyTitle}
-                          className="w-20 h-20 rounded-xl object-cover shrink-0 border border-[#234d4d]"
-                        />
-                      )}
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="badge-lime">
-                            {viewing.status}
-                          </span>
-                          <span className="text-xs text-[#567177]">
-                            Booked for: {activeCustomer?.name || "VIP Buyer"}
-                          </span>
-                        </div>
+                {bookedViewings
+                  .filter((v) => {
+                    if (trackerFilter === "active") return v.status !== "Cancelled";
+                    if (trackerFilter === "cancelled") return v.status === "Cancelled";
+                    return true;
+                  })
+                  .map((viewing) => {
+                  const isCancelled = viewing.status === "Cancelled";
+                  const isWhatsAppCancelled = isCancelled && viewing.cancelledVia === "whatsapp";
 
-                        <h3 className="text-base font-bold text-[#10484b] customer-portal-serif">
-                          {viewing.propertyTitle}
-                        </h3>
+                  const handleOpenReschedule = () => {
+                    const matched = CUSTOMER_PROPERTIES.find(
+                      (p) =>
+                        p.id === viewing.propertyId ||
+                        p.title.toLowerCase().trim() === viewing.propertyTitle.toLowerCase().trim() ||
+                        viewing.propertyTitle.toLowerCase().includes(p.title.toLowerCase()) ||
+                        p.title.toLowerCase().includes(viewing.propertyTitle.toLowerCase())
+                    );
+                    setReschedulingViewing(viewing);
+                    setViewingModalProperty(
+                      matched || {
+                        id: viewing.propertyId,
+                        title: viewing.propertyTitle,
+                        name: viewing.propertyTitle,
+                        location: viewing.propertyLocation,
+                        price: viewing.propertyPrice,
+                        imageUrl: viewing.propertyImage,
+                        developer: "",
+                        type: "Residence",
+                        beds: 3,
+                        baths: 2,
+                        size: "1,200 sqft",
+                        status: "Available",
+                        yield: "5.2%",
+                        collection: [],
+                        features: [],
+                      }
+                    );
+                  };
 
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-[#285c59]">
-                          <span className="flex items-center gap-1 font-semibold">
-                            <Calendar size={13} className="text-[#234d4d]" />
-                            {viewing.date}
-                          </span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1 font-semibold">
-                            <Clock size={13} className="text-[#234d4d]" />
-                            {viewing.timeSlot}
-                          </span>
-                        </div>
-
-                        {viewing.notes && (
-                          <p className="text-[11px] text-[#567177] italic bg-[#f4faea] px-2.5 py-1 rounded-lg border border-[#dfe6df]">
-                            Note: {viewing.notes}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Agent contact card */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-[#dfe6df]">
-                      <div className="p-3 bg-[#f4faea] rounded-xl border border-[#234d4d] flex items-center gap-3 w-full sm:w-auto">
-                        <div className="w-8 h-8 rounded-full bg-[#234d4d] text-[#d7ef73] text-xs font-bold flex items-center justify-center">
-                          {viewing.agentName
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </div>
-                        <div className="text-left">
-                          <p className="text-xs font-bold text-[#10484b]">
-                            {viewing.agentName}
-                          </p>
-                          <p className="text-[10px] text-[#6e897e] font-semibold">Dedicated Specialist</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 w-full sm:w-auto">
-                        <a
-                          href={`tel:${viewing.agentPhone}`}
-                          className="flex-1 sm:flex-none px-3.5 py-2 bg-[#fbfff9] border border-[#234d4d] hover:bg-[#eaf6df] text-[#10484b] text-xs font-bold rounded-xl flex items-center justify-center gap-1 shadow-sm"
+                  return (
+                    <div
+                      key={viewing.id}
+                      className={`terrain-card p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 transition-all ${
+                        isCancelled ? "opacity-75 bg-[#fafbf9] border-dashed border-rose-200" : ""
+                      }`}
+                    >
+                        <div
+                          onClick={() => setHistoryViewing(viewing)}
+                          className="flex items-start gap-4 cursor-pointer flex-1 group"
+                          title="Click to view appointment history & timeline"
                         >
-                          <Phone size={13} />
-                          Call
-                        </a>
+                          {viewing.propertyImage && (
+                            <img
+                              src={viewing.propertyImage}
+                              alt={viewing.propertyTitle}
+                              className="w-20 h-20 rounded-xl object-cover shrink-0 border border-[#234d4d] group-hover:ring-2 group-hover:ring-[#234d4d]/30 transition"
+                            />
+                          )}
+                          <div className="space-y-1.5 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {isCancelled ? (
+                                <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[11px] font-bold border border-rose-300 flex items-center gap-1">
+                                  ✕ Cancelled
+                                </span>
+                              ) : (
+                                <span className="badge-lime">
+                                  {viewing.status}
+                                </span>
+                              )}
 
-                        <button
-                          onClick={() => {
-                            cancelViewing(viewing.id);
-                            toast.success("Tour appointment cancelled.");
-                          }}
-                          className="flex-1 sm:flex-none px-3.5 py-2 text-rose-600 hover:bg-rose-50 text-xs font-bold rounded-xl transition border border-rose-200"
-                        >
-                          Cancel
-                        </button>
+                              {/* WhatsApp Tag */}
+                              {isWhatsAppCancelled ? (
+                                <span className="px-2.5 py-0.5 rounded-full bg-[#dcfce7] text-[#166534] text-[10px] font-bold border border-[#86efac] flex items-center gap-1">
+                                  💬 Cancelled via WhatsApp
+                                </span>
+                              ) : !isCancelled ? (
+                                <>
+                                  <span className="px-2 py-0.5 rounded-full bg-[#e8f5e9] text-[#2e7d32] text-[10px] font-semibold border border-[#a5d6a7] flex items-center gap-1">
+                                    📱 WhatsApp Synced
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-semibold border border-blue-200 flex items-center gap-1">
+                                    📅 Google Calendar
+                                  </span>
+                                </>
+                              ) : null}
+
+                              <span className="text-xs text-[#567177]">
+                                Tour Ref: #{viewing.id}
+                              </span>
+                            </div>
+
+                            <h3 className="text-base font-bold text-[#10484b] customer-portal-serif group-hover:text-[#234d4d] transition flex items-center gap-1.5">
+                              <span>{viewing.propertyTitle}</span>
+                              <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#234d4d]" />
+                            </h3>
+
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-[#285c59]">
+                              <span className="flex items-center gap-1 font-semibold">
+                                <Calendar size={13} className="text-[#234d4d]" />
+                                {viewing.date}
+                              </span>
+                              <span>•</span>
+                              <span className="flex items-center gap-1 font-semibold">
+                                <Clock size={13} className="text-[#234d4d]" />
+                                {viewing.timeSlot}
+                              </span>
+                            </div>
+
+                            {viewing.notes && (
+                              <p className="text-[11px] text-[#567177] italic bg-[#f4faea] px-2.5 py-1 rounded-lg border border-[#dfe6df]">
+                                Note: {viewing.notes}
+                              </p>
+                            )}
+
+                            {isCancelled && viewing.cancellationReason && (
+                              <p className="text-[11px] text-rose-700 bg-rose-50/80 px-2.5 py-1 rounded-lg border border-rose-200">
+                                ℹ️ {viewing.cancellationReason}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Agent contact card & Actions */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-[#dfe6df]">
+                          <div className="p-2.5 bg-[#f4faea] rounded-xl border border-[#234d4d] flex items-center gap-2.5 w-full sm:w-auto">
+                            <div className="w-8 h-8 rounded-full bg-[#234d4d] text-[#d7ef73] text-xs font-bold flex items-center justify-center">
+                              {viewing.agentName
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")}
+                            </div>
+                            <div className="text-left">
+                              <p className="text-xs font-bold text-[#10484b]">
+                                {viewing.agentName}
+                              </p>
+                              <p className="text-[10px] text-[#6e897e] font-semibold">Specialist</p>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
+                            {/* History button */}
+                            <button
+                              onClick={() => setHistoryViewing(viewing)}
+                              className="px-2.5 py-2 bg-white hover:bg-[#eaf6df] border border-[#dfe6df] text-[#234d4d] text-xs font-bold rounded-xl flex items-center gap-1 transition shadow-2xs"
+                              title="View Booking Timeline & History"
+                            >
+                              <History size={13} />
+                              <span>History</span>
+                            </button>
+
+                            <a
+                              href={`tel:${viewing.agentPhone}`}
+                              className="px-2.5 py-2 bg-[#fbfff9] border border-[#234d4d] hover:bg-[#eaf6df] text-[#10484b] text-xs font-bold rounded-xl flex items-center justify-center gap-1 shadow-2xs"
+                              title="Call Specialist"
+                            >
+                              <Phone size={13} />
+                            </a>
+
+                            {!isCancelled ? (
+                              <>
+                                <a
+                                  href={buildGoogleCalendarUrl({
+                                    title: viewing.propertyTitle,
+                                    location: viewing.propertyLocation,
+                                    date: viewing.date,
+                                    timeSlot: viewing.timeSlot,
+                                    specialistName: viewing.agentName,
+                                    specialistPhone: viewing.agentPhone,
+                                    notes: viewing.notes,
+                                    bookingId: viewing.id,
+                                    googleCalendarHtmlLink: viewing.googleCalendarHtmlLink,
+                                    googleCalendarEventId: viewing.googleCalendarEventId,
+                                  })}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2.5 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-bold rounded-xl flex items-center gap-1 transition shadow-2xs cursor-pointer"
+                                  title="Open Event in Google Calendar"
+                                >
+                                  <Calendar size={13} className="text-blue-600" />
+                                  <span>G-Cal</span>
+                                </a>
+
+                                <button
+                                  onClick={handleOpenReschedule}
+                                  className="px-3 py-2 bg-[#234d4d] hover:bg-[#10484b] text-[#d7ef73] text-xs font-bold rounded-xl transition border border-[#234d4d]"
+                                >
+                                  Reschedule
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    cancelViewing(viewing.id);
+                                    toast.success("Tour appointment cancelled.");
+                                  }}
+                                  className="px-3 py-2 text-rose-600 hover:bg-rose-50 text-xs font-bold rounded-xl transition border border-rose-200"
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={handleOpenReschedule}
+                                  className="px-3 py-2 bg-[#234d4d] hover:bg-[#10484b] text-[#d7ef73] text-xs font-bold rounded-xl transition border border-[#234d4d] flex items-center gap-1"
+                                >
+                                  <CalendarPlus size={13} />
+                                  Re-book Tour
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    dismissViewing(viewing.id);
+                                    toast.success("Removed from history.");
+                                  }}
+                                  className="px-3 py-2 text-rose-500 hover:bg-rose-50 text-xs font-bold rounded-xl transition border border-rose-200 flex items-center gap-1"
+                                  title="Remove this cancelled tour from your history"
+                                >
+                                  <Trash2 size={12} />
+                                  Dismiss
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )
+            }
           </div>
         )}
 
@@ -1424,187 +1799,23 @@ export default function CustomerPortal() {
         {/* TAB 4: MORTGAGE & AFFORDABILITY PLANNER                                    */}
         {/* ========================================================================= */}
         {activeTab === "financing" && (
-          <div className="space-y-6">
-            <div className="pb-4 border-b border-[#d2e5d4]">
-              <h2 className="customer-portal-serif text-2xl sm:text-3xl font-normal text-[#10484b]">
-                Mortgage & Financing Vault
-              </h2>
-              <p className="text-xs text-[#567177] mt-0.5 font-medium">
-                Simulate monthly repayments, Malaysian stamp duty (MOT), and debt service ratios for prime properties.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Interactive Sliders Form */}
-              <div className="lg:col-span-7 terrain-card p-6 space-y-6">
-                <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#234d4d]">
-                  Loan Simulation Parameters
-                </h3>
-
-                {/* Property Price */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-bold text-[#10484b]">
-                      Property Purchase Price
-                    </span>
-                    <span className="text-base font-black text-[#10484b] customer-portal-serif">
-                      RM {calcPrice.toLocaleString()}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={500000}
-                    max={10000000}
-                    step={50000}
-                    value={calcPrice}
-                    onChange={(e) => setCalcPrice(Number(e.target.value))}
-                    className="w-full h-2 bg-[#dfe6df] rounded-lg appearance-none cursor-pointer accent-[#234d4d]"
-                  />
-                  <div className="flex justify-between text-[10px] text-[#6e897e] font-semibold">
-                    <span>RM 500,000</span>
-                    <span>RM 5,000,000</span>
-                    <span>RM 10,000,000</span>
-                  </div>
-                </div>
-
-                {/* Downpayment */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-bold text-[#10484b]">
-                      Downpayment Percentage ({calcDownpaymentPercent}%)
-                    </span>
-                    <span className="font-bold text-[#234d4d]">
-                      RM {downpaymentAmount.toLocaleString()}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={5}
-                    max={50}
-                    step={5}
-                    value={calcDownpaymentPercent}
-                    onChange={(e) => setCalcDownpaymentPercent(Number(e.target.value))}
-                    className="w-full h-2 bg-[#dfe6df] rounded-lg appearance-none cursor-pointer accent-[#234d4d]"
-                  />
-                  <div className="flex justify-between text-[10px] text-[#6e897e] font-semibold">
-                    <span>5% (Min)</span>
-                    <span>10% (Standard)</span>
-                    <span>30%</span>
-                    <span>50%</span>
-                  </div>
-                </div>
-
-                {/* Tenure */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-bold text-[#10484b]">
-                      Loan Tenure ({calcTenureYears} Years)
-                    </span>
-                    <span className="font-bold text-[#285c59]">
-                      {calcTenureYears * 12} Installments
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={10}
-                    max={35}
-                    step={1}
-                    value={calcTenureYears}
-                    onChange={(e) => setCalcTenureYears(Number(e.target.value))}
-                    className="w-full h-2 bg-[#dfe6df] rounded-lg appearance-none cursor-pointer accent-[#234d4d]"
-                  />
-                  <div className="flex justify-between text-[10px] text-[#6e897e] font-semibold">
-                    <span>10 Years</span>
-                    <span>20 Years</span>
-                    <span>30 Years</span>
-                    <span>35 Years</span>
-                  </div>
-                </div>
-
-                {/* Interest Rate */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-bold text-[#10484b]">
-                      Annual Bank Interest Rate
-                    </span>
-                    <span className="font-bold text-[#234d4d]">
-                      {calcInterestRate.toFixed(2)}% p.a.
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={3.0}
-                    max={6.0}
-                    step={0.05}
-                    value={calcInterestRate}
-                    onChange={(e) => setCalcInterestRate(Number(e.target.value))}
-                    className="w-full h-2 bg-[#dfe6df] rounded-lg appearance-none cursor-pointer accent-[#234d4d]"
-                  />
-                  <div className="flex justify-between text-[10px] text-[#6e897e] font-semibold">
-                    <span>3.00%</span>
-                    <span>4.20% (Market Average)</span>
-                    <span>6.00%</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Repayment Breakdown Results Card matching Hero gradient */}
-              <div className="lg:col-span-5 space-y-4">
-                <div className="customer-terrain-hero p-6 text-white space-y-4">
-                  <div>
-                    <span className="badge-lime">
-                      Estimated Monthly Installment
-                    </span>
-                    <div className="text-3xl font-black tracking-tight text-white mt-2 customer-portal-serif">
-                      RM {monthlyRepayment.toLocaleString()}
-                      <span className="text-xs font-normal text-[#d7ef73]"> / month</span>
-                    </div>
-                  </div>
-
-                  <div className="p-3 bg-black/20 backdrop-blur rounded-xl space-y-2 text-xs border border-white/10">
-                    <div className="flex justify-between text-slate-200">
-                      <span>Loan Principal ({(100 - calcDownpaymentPercent)}%):</span>
-                      <span className="font-bold text-white">RM {loanPrincipal.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-slate-200">
-                      <span>Total Interest ({calcTenureYears} yrs):</span>
-                      <span className="font-bold text-[#d7ef73]">RM {totalInterest.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-slate-200">
-                      <span>Total Repayment:</span>
-                      <span className="font-bold text-white">RM {totalRepayment.toLocaleString()}</span>
-                    </div>
-                  </div>
-
-                  {/* Affordability check */}
-                  <div className="pt-2 border-t border-white/10 space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-200">Recommended Monthly Income:</span>
-                      <span className="font-bold text-[#d7ef73]">~RM {minRecommendedIncome.toLocaleString()}</span>
-                    </div>
-                    <p className="text-[10px] text-slate-300">
-                      Calculated at a healthy 60% Debt Service Ratio (DSR).
-                    </p>
-                  </div>
-                </div>
-
-                {/* Stamp Duty (MOT) Card */}
-                <div className="terrain-card p-5 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-[#10484b]">
-                      Est. Malaysian Stamp Duty (MOT)
-                    </span>
-                    <span className="font-bold text-[#10484b] customer-portal-serif text-sm">
-                      RM {stampDuty.toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-[#567177] leading-relaxed font-medium">
-                    Based on standard Inland Revenue Board (LHDN) tiered schedule (1% first 100k, 2% up to 500k, 3% up to 1M, 4% above).
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <InteractiveFinancialRoiCalculator
+            initialPrice={calcPrice}
+            properties={CUSTOMER_PROPERTIES.map((p) => {
+              const numericSize = parseInt(p.size.replace(/\D/g, ""), 10) || 1800;
+              return {
+                id: p.id,
+                title: p.title,
+                location: p.location,
+                price: p.price,
+                imageUrl: p.imageUrl,
+                maintenanceFee: Math.round(numericSize * 0.45),
+              };
+            })}
+            onSelectProperty={(prop) => {
+              setCalcPrice(prop.price);
+            }}
+          />
         )}
 
         {/* ========================================================================= */}
@@ -1612,7 +1823,7 @@ export default function CustomerPortal() {
         {/* ========================================================================= */}
         {activeTab === "concierge" && (
           <div className="space-y-6">
-            <div className="pb-4 border-b border-[#d2e5d4] flex items-start justify-between gap-4">
+            <div className="pb-4 border-b border-[#d2e5d4] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="customer-portal-serif text-2xl sm:text-3xl font-normal text-[#10484b]">
@@ -1628,30 +1839,46 @@ export default function CustomerPortal() {
                   Ask any question about properties, loan calculations, foreign buyer rules, rental yields, and prime locations.
                 </p>
               </div>
-              {!isGuest ? (
-                <button
-                  onClick={handleNewConciergeConvo}
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-[#234d4d] hover:bg-[#10484b] text-[#d7ef73] text-xs font-bold rounded-xl transition shadow"
-                >
-                  <Plus size={13} />
-                  New Chat
-                </button>
-              ) : (
-                <button
-                  onClick={() => openAuthModal("Sign in to unlock unlimited AI property queries and save your chat history.")}
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-[#234d4d] hover:bg-[#10484b] text-[#d7ef73] text-xs font-bold rounded-xl transition shadow"
-                >
-                  <Sparkles size={13} />
-                  Sign In for Unlimited
-                </button>
-              )}
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {!isGuest ? (
+                  <button
+                    onClick={handleNewConciergeConvo}
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-[#234d4d] hover:bg-[#10484b] text-[#d7ef73] text-xs font-bold rounded-xl transition shadow"
+                  >
+                    <Plus size={13} />
+                    New Chat
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => openAuthModal("Sign in to unlock unlimited AI property queries and save your chat history.")}
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-[#234d4d] hover:bg-[#10484b] text-[#d7ef73] text-xs font-bold rounded-xl transition shadow"
+                  >
+                    <Sparkles size={13} />
+                    Sign In for Unlimited
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Chat Container with sidebar */}
-              <div className="lg:col-span-8 terrain-card flex overflow-hidden" style={{ height: "580px" }}>
-                {/* Conversation list sidebar (Members only) */}
-                <AnimatePresence>
+              {/* Chat Container with sidebar OR Voice Mode Component */}
+              <div className="lg:col-span-8 terrain-card flex overflow-hidden" style={{ height: "630px" }}>
+                {conciergeMode === "voice" ? (
+                  <div className="w-full h-full flex flex-col">
+                    <ConciergeVoiceMode
+                      onSendMessage={sendConciergeMessage}
+                      isAiThinking={isAiThinking}
+                      messages={chatMessages}
+                      onSwitchToChat={() => setConciergeMode("chat")}
+                      isGuestLimitReached={isGuestLimitReached}
+                      onOpenAuthModal={openAuthModal}
+                    />
+                  </div>
+                ) : (
+                  <>
+                    {/* Conversation list sidebar (Members only) */}
+                    <AnimatePresence>
                   {!isGuest && showConciergeList && (
                     <motion.div
                       initial={{ width: 0, opacity: 0 }}
@@ -1716,56 +1943,76 @@ export default function CustomerPortal() {
                 {/* Main chat panel */}
                 <div className="flex flex-1 flex-col min-w-0">
                   {/* Chat Header */}
-                  <div className="p-3 bg-[#234d4d] text-white flex items-center justify-between border-b border-[#10484b] shrink-0">
-                    <div className="flex items-center gap-2">
+                  <div className="px-5 py-4 bg-[#234d4d] text-white flex items-center justify-between border-b border-[#10484b] shrink-0 gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       {!isGuest ? (
                         <button
                           onClick={() => setShowConciergeList((v) => !v)}
-                          className="w-7 h-7 rounded-lg bg-[#d7ef73]/20 hover:bg-[#d7ef73]/30 text-[#d7ef73] flex items-center justify-center transition"
+                          className="w-9 h-9 rounded-xl bg-[#d7ef73]/20 hover:bg-[#d7ef73]/30 text-[#d7ef73] flex items-center justify-center transition shrink-0"
                           title="Conversation history"
                         >
-                          {showConciergeList ? <ChevronLeft size={13} /> : <MessagesSquare size={13} />}
+                          {showConciergeList ? <ChevronLeft size={16} /> : <MessagesSquare size={16} />}
                         </button>
                       ) : (
                         <button
                           onClick={() => openAuthModal("Sign in to unlock multiple saved conversations.")}
-                          className="w-7 h-7 rounded-lg bg-[#d7ef73]/20 hover:bg-[#d7ef73]/30 text-[#d7ef73] flex items-center justify-center transition"
+                          className="w-9 h-9 rounded-xl bg-[#d7ef73]/20 hover:bg-[#d7ef73]/30 text-[#d7ef73] flex items-center justify-center transition shrink-0"
                           title="Sign in to save chat history"
                         >
-                          <Lock size={13} />
+                          <Lock size={15} />
                         </button>
                       )}
-                      <div className="w-7 h-7 rounded-xl bg-[#d7ef73] text-[#153941] flex items-center justify-center font-bold">
-                        <Sparkles size={13} />
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#1c4545] border border-[#d7ef73]/40 text-[#d7ef73] flex items-center justify-center font-bold text-sm shadow-sm shrink-0" title="Luxury Butler Concierge">
+                        <UserCheck size={18} />
                       </div>
-                      <div>
-                        <p className="text-[11px] font-bold text-white truncate max-w-[160px]">
+                      <div className="min-w-0">
+                        <p className="text-sm sm:text-base font-bold text-white truncate max-w-[200px] sm:max-w-[260px] leading-tight">
                           {activeConciergeConvo?.title === "New Conversation"
-                            ? "AI Property Concierge"
-                            : activeConciergeConvo?.title ?? "AI Property Concierge"}
+                            ? "Luxury Butler Concierge"
+                            : activeConciergeConvo?.title ?? "Luxury Butler Concierge"}
                         </p>
-                        <p className="text-[10px] text-[#d7ef73]">
-                          {isGuest ? `${guestQueriesRemaining} free questions remaining` : "Online • 24/7 AI Intelligence"}
+                        <p className="text-xs text-[#d7ef73] font-medium truncate mt-0.5">
+                          {isGuest ? `${guestQueriesRemaining} free questions remaining` : "Personal Butler · Online 24/7"}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Segmented Mode Switcher Tab on Chat Window */}
+                      <div className="inline-flex items-center p-1 bg-black/30 border border-white/15 rounded-xl gap-1 shadow-inner">
+                        <button
+                          type="button"
+                          onClick={() => setConciergeMode("chat")}
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs sm:text-[13px] font-bold rounded-lg transition-all bg-[#d7ef73] text-[#10484b] shadow-sm"
+                        >
+                          <MessageSquare size={14} />
+                          <span>Text Chat</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConciergeMode("voice")}
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs sm:text-[13px] font-bold rounded-lg transition-all text-white/70 hover:text-white hover:bg-white/10"
+                          title="Switch to Live Voice Mode"
+                        >
+                          <Mic size={14} />
+                          <span>Voice Mode</span>
+                        </button>
+                      </div>
                       {!isGuest ? (
                         <>
                           <button
                             onClick={handleNewConciergeConvo}
-                            className="flex items-center gap-1 px-2 py-1 bg-[#d7ef73]/20 hover:bg-[#d7ef73]/30 text-[#d7ef73] text-[10px] font-bold rounded-lg transition"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#d7ef73]/20 hover:bg-[#d7ef73]/30 text-[#d7ef73] text-xs font-bold rounded-xl transition"
                             title="New conversation"
                           >
-                            <Plus size={11} />
-                            New
+                            <Plus size={13} />
+                            <span>New</span>
                           </button>
-                          <span className="badge-lime">Active</span>
+                          <span className="px-2.5 py-1 rounded-full bg-[#d7ef73] text-[#10484b] text-[11px] font-black uppercase tracking-wider">Active</span>
                         </>
                       ) : (
                         <button
                           onClick={() => openAuthModal("Sign in to unlock unlimited AI inquiries.")}
-                          className="px-2.5 py-1 bg-[#d7ef73] text-[#153941] text-[10px] font-bold rounded-lg hover:bg-white transition"
+                          className="px-3 py-1.5 bg-[#d7ef73] text-[#153941] text-xs font-bold rounded-xl hover:bg-white transition"
                         >
                           Unlock Unlimited
                         </button>
@@ -1824,7 +2071,16 @@ export default function CustomerPortal() {
                   </div>
 
                   {/* Input Bar */}
-                  <form onSubmit={handleSendMessage} className="p-3 bg-[#fbfff9] border-t border-[#dfe6df] flex gap-2 shrink-0">
+                  <form onSubmit={handleSendMessage} className="p-3 bg-[#fbfff9] border-t border-[#dfe6df] flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setConciergeMode("voice")}
+                      title="Switch to Live Voice Mode (speak to AI)"
+                      className="p-2.5 rounded-xl border border-[#dfe6df] bg-[#f3f5ef] hover:bg-[#234d4d] hover:text-[#d7ef73] text-[#234d4d] transition shrink-0 flex items-center gap-1.5 text-xs font-semibold shadow-xs"
+                    >
+                      <Mic size={14} />
+                      <span className="hidden sm:inline text-[11px] font-bold">Voice</span>
+                    </button>
                     <input
                       type="text"
                       value={inputMessage}
@@ -1856,7 +2112,9 @@ export default function CustomerPortal() {
                     )}
                   </form>
                 </div>
-              </div>
+              </>
+            )}
+          </div>
 
               {/* Right: AI Capabilities & Suggested Questions */}
               <div className="lg:col-span-4 space-y-4">
@@ -1927,7 +2185,11 @@ export default function CustomerPortal() {
                         if (isGuestLimitReached) {
                           openAuthModal("Sign in to ask unlimited questions!");
                         } else {
-                          setInputMessage(prompt);
+                          if (conciergeMode === "voice") {
+                            sendConciergeMessage(prompt);
+                          } else {
+                            setInputMessage(prompt);
+                          }
                         }
                       }}
                       className="w-full p-2 text-left bg-[#f4faea] hover:bg-[#eaf6df] border border-[#234d4d] rounded-lg text-xs text-[#10484b] font-medium transition"
@@ -1979,9 +2241,251 @@ export default function CustomerPortal() {
 
       <CustomerViewingModal
         isOpen={Boolean(viewingModalProperty)}
-        onClose={() => setViewingModalProperty(null)}
+        onClose={() => {
+          setViewingModalProperty(null);
+          setReschedulingViewing(null);
+        }}
         property={viewingModalProperty}
+        rescheduleViewingId={reschedulingViewing?.id}
+        initialAgentId={reschedulingViewing?.agentId}
+        initialDate={reschedulingViewing?.date}
+        initialSlot={reschedulingViewing?.timeSlot}
+        initialNotes={reschedulingViewing?.notes}
       />
+
+      <PropertyComparisonModal
+        isOpen={isComparisonModalOpen}
+        onClose={() => setIsComparisonModalOpen(false)}
+        selectedProperties={comparisonTargetProperties as any}
+        allAvailableProperties={CUSTOMER_PROPERTIES as any}
+        onBookViewing={(p) => {
+          setIsComparisonModalOpen(false);
+          setViewingModalProperty(p);
+        }}
+        onToggleSave={(id) => toggleSaveProperty(id)}
+        isSavedFn={(id) => isPropertySaved(id)}
+      />
+
+      {/* ─── Tour History & Audit Details Modal ─────────────────────────────────────── */}
+      <AnimatePresence>
+        {historyViewing && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-[#153941]/80 backdrop-blur-md"
+              onClick={() => setHistoryViewing(null)}
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              className="relative w-full max-w-lg bg-[#fbfff9] rounded-3xl shadow-2xl border-[1.5px] border-[#234d4d] overflow-hidden z-10 text-[#10484b]"
+            >
+              {/* Header */}
+              <div className="relative px-6 py-5 bg-gradient-to-r from-[#153941] via-[#234d4d] to-[#153941] text-white">
+                <button
+                  onClick={() => setHistoryViewing(null)}
+                  className="absolute top-4 right-4 p-1.5 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#d7ef73] text-[#153941] text-[11px] font-extrabold tracking-wider uppercase border border-[#234d4d]">
+                    Tour Reference #{historyViewing.id}
+                  </span>
+                  {historyViewing.status === "Cancelled" ? (
+                    <span className="px-2 py-0.5 rounded-full bg-rose-500/30 text-rose-200 border border-rose-400/40 text-[10px] font-bold">
+                      Cancelled
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 text-[10px] font-bold">
+                      {historyViewing.status}
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-xl font-normal tracking-tight text-white customer-portal-serif">
+                  {historyViewing.propertyTitle}
+                </h2>
+                <p className="text-xs text-[#f6ffdf] mt-0.5 truncate">
+                  {historyViewing.propertyLocation} • RM {historyViewing.propertyPrice.toLocaleString()}
+                </p>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+                {/* Specialist Info */}
+                <div className="p-3.5 bg-[#f4faea] rounded-2xl border border-[#dfe6df] flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#234d4d] text-[#d7ef73] font-bold flex items-center justify-center text-sm shadow-xs">
+                      {historyViewing.agentName.split(" ").map((n: string) => n[0]).join("")}
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-[#10484b]">{historyViewing.agentName}</p>
+                      <p className="text-xs text-[#567177] font-medium">Dedicated Property Specialist</p>
+                    </div>
+                  </div>
+                  <a
+                    href={`tel:${historyViewing.agentPhone}`}
+                    className="px-3 py-1.5 bg-[#234d4d] text-[#d7ef73] rounded-xl text-xs font-bold hover:bg-[#10484b] transition flex items-center gap-1"
+                  >
+                    <Phone size={12} /> Call
+                  </a>
+                </div>
+
+                {/* Timeline / Audit Trail */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#234d4d] flex items-center gap-1.5">
+                    <History size={14} /> Appointment Timeline & History
+                  </h4>
+
+                  <div className="space-y-3 border-l-2 border-[#234d4d]/30 ml-2.5 pl-4 text-xs">
+                    {/* Scheduled Slot Event */}
+                    <div className="relative">
+                      <div className="absolute -left-[23px] top-0.5 w-3.5 h-3.5 rounded-full bg-[#234d4d] border-2 border-white" />
+                      <p className="font-bold text-[#10484b]">
+                        {historyViewing.status === "Cancelled" ? "Scheduled Slot (Cancelled)" : "Confirmed Appointment Slot"}
+                      </p>
+                      <p className="text-[#567177] mt-0.5 flex items-center gap-2">
+                        <span>📅 {historyViewing.date}</span>
+                        <span>•</span>
+                        <span>⏰ {historyViewing.timeSlot}</span>
+                      </p>
+                    </div>
+
+                    {/* WhatsApp Status Event */}
+                    <div className="relative">
+                      <div className="absolute -left-[23px] top-0.5 w-3.5 h-3.5 rounded-full bg-[#25D366] border-2 border-white" />
+                      <p className="font-bold text-[#10484b]">WhatsApp Concierge Sync</p>
+                      <p className="text-[#567177] mt-0.5">
+                        {historyViewing.cancelledVia === "whatsapp"
+                          ? "Appointment was cancelled via WhatsApp interactive command."
+                          : "Two-way WhatsApp sync active. Text STATUS, CANCEL, or RESCHEDULE anytime."}
+                      </p>
+                    </div>
+
+                    {/* Cancellation details if cancelled */}
+                    {historyViewing.status === "Cancelled" && (
+                      <div className="relative">
+                        <div className="absolute -left-[23px] top-0.5 w-3.5 h-3.5 rounded-full bg-rose-500 border-2 border-white" />
+                        <p className="font-bold text-rose-800">Cancellation Record</p>
+                        <p className="text-rose-700 mt-0.5">
+                          {historyViewing.cancellationReason || "Cancelled by client request."}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Notes if any */}
+                    {historyViewing.notes && (
+                      <div className="relative">
+                        <div className="absolute -left-[23px] top-0.5 w-3.5 h-3.5 rounded-full bg-amber-500 border-2 border-white" />
+                        <p className="font-bold text-[#10484b]">Special Requests</p>
+                        <p className="text-[#567177] italic mt-0.5">"{historyViewing.notes}"</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Modal Footer Actions */}
+                <div className="pt-3 border-t border-[#dfe6df] flex flex-wrap items-center justify-end gap-2">
+                  {historyViewing.status !== "Cancelled" ? (
+                    <>
+                      <button
+                        onClick={() => {
+                          const target = historyViewing;
+                          setHistoryViewing(null);
+                          const matched = CUSTOMER_PROPERTIES.find(
+                            (p) =>
+                              p.id === target.propertyId ||
+                              p.title.toLowerCase().trim() === target.propertyTitle.toLowerCase().trim()
+                          );
+                          setReschedulingViewing(target);
+                          setViewingModalProperty(
+                            matched || {
+                              id: target.propertyId,
+                              title: target.propertyTitle,
+                              name: target.propertyTitle,
+                              location: target.propertyLocation,
+                              price: target.propertyPrice,
+                              imageUrl: target.propertyImage,
+                              developer: "",
+                              type: "Residence",
+                              beds: 3,
+                              baths: 2,
+                              size: "1,200 sqft",
+                              status: "Available",
+                              yield: "5.2%",
+                              collection: [],
+                              features: [],
+                            }
+                          );
+                        }}
+                        className="px-4 py-2 bg-[#234d4d] hover:bg-[#10484b] text-[#d7ef73] rounded-xl text-xs font-bold transition border border-[#234d4d] cursor-pointer"
+                      >
+                        Reschedule Appointment
+                      </button>
+                      <button
+                        onClick={async () => {
+                          const idToCancel = historyViewing.id;
+                          setHistoryViewing(null);
+                          await cancelViewing(idToCancel);
+                          toast.success("Tour appointment cancelled.");
+                        }}
+                        className="px-4 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold transition border border-rose-200 cursor-pointer"
+                      >
+                        Cancel Tour
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        const target = historyViewing;
+                        setHistoryViewing(null);
+                        const matched = CUSTOMER_PROPERTIES.find(
+                          (p) =>
+                            p.id === target.propertyId ||
+                            p.title.toLowerCase().trim() === target.propertyTitle.toLowerCase().trim()
+                        );
+                        setReschedulingViewing(target);
+                        setViewingModalProperty(
+                          matched || {
+                            id: target.propertyId,
+                            title: target.propertyTitle,
+                            name: target.propertyTitle,
+                            location: target.propertyLocation,
+                            price: target.propertyPrice,
+                            imageUrl: target.propertyImage,
+                            developer: "",
+                            type: "Residence",
+                            beds: 3,
+                            baths: 2,
+                            size: "1,200 sqft",
+                            status: "Available",
+                            yield: "5.2%",
+                            collection: [],
+                            features: [],
+                          }
+                        );
+                      }}
+                      className="px-4 py-2 bg-[#234d4d] hover:bg-[#10484b] text-[#d7ef73] rounded-xl text-xs font-bold transition border border-[#234d4d] cursor-pointer"
+                    >
+                      Rebook This Tour
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setHistoryViewing(null)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

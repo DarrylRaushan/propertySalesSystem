@@ -1,4 +1,12 @@
 import type { SystemDataContext } from "./aiContext";
+import {
+  calculateMOT,
+  calculateMortgage,
+  evaluateDSR,
+  calculateRentalYield,
+  checkForeignBuyerEligibility,
+  formatRM,
+} from "./aiCalculators";
 
 export interface AIResponsePayload {
   content: string;
@@ -9,7 +17,6 @@ export function generateSmartAIResponse(
   context: SystemDataContext
 ): string {
   const query = userQuery.toLowerCase();
-  const formatRM = (val: number) => `RM ${Math.round(val).toLocaleString("en-MY")}`;
 
   // 0. Mortgage & Loan Installment Calculation / DSR Estimation
   if (
@@ -19,7 +26,8 @@ export function generateSmartAIResponse(
     query.includes("repayment") ||
     query.includes("calculate") ||
     query.includes("dsr") ||
-    query.includes("stamp duty")
+    query.includes("stamp duty") ||
+    query.includes("mot")
   ) {
     // Extract any number or pick default property price (e.g. RM 1,000,000)
     const match = query.match(/(\d[\d,\.]*)\s*(k|m|million|thousand)?/i);
@@ -31,40 +39,24 @@ export function generateSmartAIResponse(
         if (unit.startsWith("m")) rawVal *= 1_000_000;
         else if (unit.startsWith("k") || unit.startsWith("thou")) rawVal *= 1_000;
       }
-      if (rawVal > 10000) propertyPrice = rawVal;
+      if (rawVal >= 10000) propertyPrice = rawVal;
     } else if (context.propertiesSummary.length > 0) {
       propertyPrice = context.propertiesSummary[0].price;
     }
 
-    const loanAmount = propertyPrice * 0.9; // 90% margin of finance
-    const annualRate = 0.042; // standard 4.2% p.a.
-    const monthlyRate = annualRate / 12;
-    const tenureMonths = 35 * 12; // 35 years
-    const monthlyPayment =
-      (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, tenureMonths)) /
-      (Math.pow(1 + monthlyRate, tenureMonths) - 1);
-
-    // MOT Stamp Duty calculation (Malaysia Tier)
-    let mot = 0;
-    if (propertyPrice > 1000000) {
-      mot = 100000 * 0.01 + 400000 * 0.02 + 500000 * 0.03 + (propertyPrice - 1000000) * 0.04;
-    } else if (propertyPrice > 500000) {
-      mot = 100000 * 0.01 + 400000 * 0.02 + (propertyPrice - 500000) * 0.03;
-    } else if (propertyPrice > 100000) {
-      mot = 100000 * 0.01 + (propertyPrice - 100000) * 0.02;
-    } else {
-      mot = propertyPrice * 0.01;
-    }
-    const loanStampDuty = loanAmount * 0.005;
+    const mortgage = calculateMortgage(propertyPrice, 10, 4.25, 30);
+    const mot = calculateMOT(propertyPrice);
+    const loanStampDuty = Math.round(mortgage.loanAmount * 0.005);
+    const dsrEstimate = evaluateDSR(Math.round(mortgage.monthlyInstallment * 2.5), 1500, mortgage.monthlyInstallment);
 
     const calcChart = {
       type: "donut",
       title: `Financial Breakdown for ${formatRM(propertyPrice)}`,
-      description: "Down payment, loan principal, and estimated legal fees",
+      description: "Down payment, loan principal, and estimated legal/MOT entry fees",
       data: [
-        { label: "Loan Principal (90%)", value: Math.round(loanAmount) },
-        { label: "Down Payment (10%)", value: Math.round(propertyPrice * 0.1) },
-        { label: "Est. MOT & Legal", value: Math.round(mot + loanStampDuty) },
+        { label: "Loan Principal (90%)", value: mortgage.loanAmount },
+        { label: "Down Payment (10%)", value: mortgage.downPaymentAmount },
+        { label: "Est. MOT & Legal", value: mot.estimatedTotalEntryCost + loanStampDuty },
       ],
       xKey: "label",
       yKey: "value",
@@ -74,11 +66,11 @@ export function generateSmartAIResponse(
       title: "Financing Action Steps",
       recommendations: [
         {
-          action: `Target buyers with minimum nett household income of ${formatRM(monthlyPayment * 2.2)} (DSR < 45%)`,
+          action: `Target buyers with minimum nett household income of ${formatRM(mortgage.monthlyInstallment * 2.2)} (DSR < 45%)`,
           type: "eligibility",
         },
         {
-          action: `Check developer incentives (e.g. Free SPA, Free MOT absorptions) to reduce entry capital`,
+          action: `Check developer incentives (e.g. Free SPA, Free MOT absorptions) to save ${formatRM(mot.estimatedTotalEntryCost)} entry capital`,
           type: "incentive",
         },
       ],
@@ -92,14 +84,16 @@ export function generateSmartAIResponse(
 
 For a property valued at **${formatRM(propertyPrice)}**:
 
-| Component | Estimate | Parameters |
+| Component | Amount | Parameters / Formula |
 |---|---|---|
-| **Down Payment (10%)** | **${formatRM(propertyPrice * 0.1)}** | Standard 90% loan margin |
-| **Loan Financing (90%)** | **${formatRM(loanAmount)}** | 35-Year Tenure @ 4.2% p.a. |
-| **Monthly Repayment** | **${formatRM(monthlyPayment)} / month** | Principal + Interest |
-| **Est. MOT Stamp Duty** | **${formatRM(mot)}** | Tiered Malaysian Scale |
-| **Loan Agreement Duty** | **${formatRM(loanStampDuty)}** | 0.5% of loan amount |
-| **Min. Recommended Income** | **${formatRM(monthlyPayment * 2.5)}** | Based on max 40% Debt Service Ratio (DSR) |
+| **Down Payment (10%)** | **${formatRM(mortgage.downPaymentAmount)}** | 10% standard equity deposit |
+| **Loan Financing (90%)** | **${formatRM(mortgage.loanAmount)}** | 30-Year Amortization @ 4.25% p.a. |
+| **Monthly Installment** | **${formatRM(mortgage.monthlyInstallment)} / month** | Principal + Compound Interest |
+| **MOT Stamp Duty (Tiered)** | **${formatRM(mot.totalStampDuty)}** | 1% (100k), 2% (400k), 3% (500k), 4% (bal) |
+| **Est. Legal Fees (SRO)** | **${formatRM(mot.estimatedLegalFees)}** | Standard Legal Scale Order |
+| **Loan Agreement Duty** | **${formatRM(loanStampDuty)}** | 0.50% of loan facility |
+| **Total Entry Capital Needed** | **${formatRM(mortgage.downPaymentAmount + mot.estimatedTotalEntryCost + loanStampDuty)}** | Down payment + MOT + Legal fees |
+| **Min. Recommended Net Income** | **${formatRM(mortgage.monthlyInstallment * 2.5)}** | Based on max 40% Debt Service Ratio (DSR) |
 
 <<<CHART_DATA
 ${JSON.stringify(calcChart, null, 2)}
@@ -109,7 +103,7 @@ ${JSON.stringify(calcChart, null, 2)}
 ${JSON.stringify(decisionBlock, null, 2)}
 >>>
 
-💡 *Need a custom calculation for a different property price or tenure? Simply ask e.g. "Calculate loan for RM 1.5M over 30 years".*`;
+💡 *Need a custom calculation for a different property price or tenure? Simply ask e.g. "Calculate loan for RM 1.5M over 35 years".*`;
   }
 
   // 0.5 WhatsApp & Pitch Generator
@@ -124,7 +118,13 @@ ${JSON.stringify(decisionBlock, null, 2)}
       name: "Marcus Tan",
       property: "Asteria Residences",
       segment: "Investor",
+      phone: "+60123456789",
     };
+
+    const cleanPhone = (topLead.phone || "+60123456789").replace(/[^0-9]/g, "");
+    const waText = encodeURIComponent(
+      `Hi ${topLead.name.split(" ")[0]}, following up on your property portfolio strategy. We just secured an exclusive priority unit release at ${topLead.property} with high rental yield projections. Would you be open for a private 10-minute preview walk-through this Friday or Saturday?`
+    );
 
     return `### 📱 High-Conversion WhatsApp Outreach Templates
 
@@ -134,6 +134,8 @@ Here are ready-to-send outreach pitches tailored to your current active leads:
 
 #### 1. 🌟 Exclusive Priority Unit Release (High-Yield Investor)
 > *"Hi ${topLead.name.split(" ")[0]}, following up on your property portfolio strategy. We just secured an exclusive priority unit release at **${topLead.property}** with high rental yield projections and developer absorption packages. Would you be open for a private 10-minute preview walk-through this Friday or Saturday?"*
+
+👉 [📲 **Launch WhatsApp with ${topLead.name}**](https://wa.me/${cleanPhone}?text=${waText})
 
 ---
 
@@ -145,7 +147,7 @@ Here are ready-to-send outreach pitches tailored to your current active leads:
 #### 3. ⏰ Urgency / Limited Slot Invitation
 > *"Hi ${topLead.name.split(" ")[0]}, quick update on **${topLead.property}** — only 3 selected layout units remain in this launch phase before price revision next month. Shall I reserve a private showroom viewing slot for you this weekend?"*
 
-💡 *Click **Copy Pitch** inside the decision card or reply with a lead name to get a hyper-customized message!*`;
+💡 *Click **Copy Pitch** or the WhatsApp launch link to initiate instant client outreach!*`;
   }
 
   // 0.8 Objection Handling Matrix
@@ -567,9 +569,9 @@ export function generateCustomerSmartAIResponse(
     query.startsWith("hello ")
   ) {
     const featuredTitles = properties.slice(0, 3).map((p) => `**${p.title}** (${p.location})`).join(", ");
-    return `Hello and welcome! I am your **AI Property Concierge**.
+    return `Good day and welcome! I am your **Personal Butler & Property Concierge**.
 
-I can help you explore our luxury residences across Malaysia, calculate loan repayments and MOT stamp duties, or guide you through foreign buyer guidelines.
+I am at your service to help you explore our luxury residences across Malaysia, calculate loan repayments and MOT stamp duties, or guide you through foreign buyer guidelines.
 
 ---
 
@@ -642,42 +644,26 @@ Foreign individuals and overseas entities can readily acquire freehold and lease
         if (unit.startsWith("m")) rawVal *= 1_000_000;
         else if (unit.startsWith("k") || unit.startsWith("thou")) rawVal *= 1_000;
       }
-      if (rawVal > 10000) propertyPrice = rawVal;
+      if (rawVal >= 10000) propertyPrice = rawVal;
     } else if (properties.length > 0) {
       propertyPrice = properties[0].price;
     }
 
-    const loanAmount = propertyPrice * 0.9;
-    const annualRate = 0.042; // 4.2% p.a.
-    const monthlyRate = annualRate / 12;
-    const tenureMonths = 30 * 12; // 30 years
-    const monthlyPayment =
-      (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, tenureMonths)) /
-      (Math.pow(1 + monthlyRate, tenureMonths) - 1);
-
-    // Malaysian MOT Stamp Duty
-    let mot = 0;
-    if (propertyPrice > 1000000) {
-      mot = 100000 * 0.01 + 400000 * 0.02 + 500000 * 0.03 + (propertyPrice - 1000000) * 0.04;
-    } else if (propertyPrice > 500000) {
-      mot = 100000 * 0.01 + 400000 * 0.02 + (propertyPrice - 500000) * 0.03;
-    } else if (propertyPrice > 100000) {
-      mot = 100000 * 0.01 + (propertyPrice - 100000) * 0.02;
-    } else {
-      mot = propertyPrice * 0.01;
-    }
-    const loanStampDuty = loanAmount * 0.005;
+    const mortgage = calculateMortgage(propertyPrice, 10, 4.25, 30);
+    const mot = calculateMOT(propertyPrice);
+    const loanStampDuty = Math.round(mortgage.loanAmount * 0.005);
 
     return `### 🧮 Mortgage & Financial Breakdown for **${formatRM(propertyPrice)}**
 
 | Cost Item | Estimated Amount | Calculation Basis |
 | :--- | :--- | :--- |
-| **Down Payment (10%)** | **${formatRM(propertyPrice * 0.1)}** | Standard 90% loan facility |
-| **Loan Amount (90%)** | **${formatRM(loanAmount)}** | 30-Year tenure @ 4.20% p.a. |
-| **Estimated Monthly Installment** | **${formatRM(monthlyPayment)} / month** | Principal + Interest amortization |
-| **MOT Stamp Duty (Transfer)** | **${formatRM(mot)}** | Tiered LHDN schedule (1%–4%) |
+| **Down Payment (10%)** | **${formatRM(mortgage.downPaymentAmount)}** | Standard 90% loan facility |
+| **Loan Amount (90%)** | **${formatRM(mortgage.loanAmount)}** | 30-Year tenure @ 4.25% p.a. |
+| **Estimated Monthly Installment** | **${formatRM(mortgage.monthlyInstallment)} / month** | Principal + Interest amortization |
+| **MOT Stamp Duty (Transfer)** | **${formatRM(mot.totalStampDuty)}** | Tiered LHDN schedule (1%–4%) |
+| **Est. Legal Fees (SRO)** | **${formatRM(mot.estimatedLegalFees)}** | Standard Legal Scale Order |
 | **Loan Agreement Stamp Duty** | **${formatRM(loanStampDuty)}** | 0.50% of loan facility |
-| **Min. Recommended Net Income** | **${formatRM(monthlyPayment / 0.45)} / month** | Based on conservative 45% DSR |
+| **Min. Recommended Net Income** | **${formatRM(mortgage.monthlyInstallment * 2.5)} / month** | Based on conservative 40% DSR |
 
 ---
 
@@ -798,9 +784,9 @@ If you have specific commercial inquiries or wish to speak with our property spe
   }
 
   // 8. General Default Help
-  return `### 🏠 AI Property Concierge
+  return `### 👔 Virtual Butler & Property Concierge
 
-I am here to assist your property journey in Malaysia. How can I help you?
+Good day! I am at your service to assist your luxury property journey in Malaysia. How may I assist you today?
 
 - 🇲🇾 **Foreign Buyer Rules:** Ask about MM2H and minimum purchase thresholds in KL/Selangor.
 - 🧮 **Mortgage Calculator:** Ask for monthly repayment and MOT stamp duty estimates.

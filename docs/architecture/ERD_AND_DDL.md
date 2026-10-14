@@ -13,7 +13,11 @@ erDiagram
     USERS ||--o{ SALES_TREND : "records"
     USERS ||--o{ ENQUIRY_SOURCES : "tracks"
     USERS ||--o{ FOLLOW_UP_HEALTH : "monitors"
+    USERS ||--|| USER_CREDENTIALS : "authenticates_with"
 
+    CUSTOMERS ||--o| CUSTOMER_ACCOUNTS : "owns_portal_account"
+
+    CUSTOMER_ACCOUNTS ||--|| CUSTOMER_CREDENTIALS : "authenticates_with"
     CUSTOMER_ACCOUNTS ||--o{ CUSTOMER_SHORTLISTS : "saves"
     CUSTOMER_ACCOUNTS ||--o{ PROPERTY_VIEWINGS : "books"
     CUSTOMER_ACCOUNTS ||--o{ CONVERSATIONS : "owns"
@@ -38,6 +42,16 @@ erDiagram
         timestamp createdAt
         timestamp updatedAt
         timestamp lastSignedIn
+    }
+
+    USER_CREDENTIALS {
+        integer id PK
+        integer userId FK
+        string passwordHash
+        string salt
+        string resetToken
+        timestamp tokenExpiresAt
+        timestamp updatedAt
     }
 
     PROPERTIES {
@@ -102,9 +116,9 @@ erDiagram
 
     CUSTOMER_ACCOUNTS {
         integer id PK
+        integer customerId FK
         string name
         string email UK
-        string password
         string phone
         string avatarInitials
         string segment
@@ -116,6 +130,16 @@ erDiagram
         text preferredFeatures
         string assignedAgentId FK
         timestamp createdAt
+    }
+
+    CUSTOMER_CREDENTIALS {
+        integer id PK
+        integer customerAccountId FK
+        string passwordHash
+        string salt
+        string resetToken
+        timestamp tokenExpiresAt
+        timestamp updatedAt
     }
 
     CUSTOMER_SHORTLISTS {

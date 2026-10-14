@@ -4,10 +4,12 @@ import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import {
     ArrowLeft,
+    Calendar,
     CalendarDays,
     ChevronLeft,
     ChevronRight,
     Clock3,
+    ExternalLink,
     Mail,
     MapPin,
     Phone,
@@ -49,6 +51,7 @@ import ModelViewer from "@/components/ModelViewer";
 import ShowUnitModal from "@/components/ShowUnitModal";
 import { useAuth } from "@/contexts/AuthContext";
 import AgentHeader from "@/components/AgentHeader";
+import { buildGoogleCalendarUrl } from "@/lib/calendarUtils";
 import "@/components/LeadsWorkspace.css";
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
@@ -130,8 +133,24 @@ const FRONTEND_PREVIEW_LEADS = [
 
 /* ─── Appointment type derived from lead action text ──────────────────────── */
 type ApptType = "viewing" | "call" | "follow-up" | "meeting";
+type PortalViewing = {
+    id: number;
+    propertyTitle: string;
+    propertyLocation: string;
+    agentName: string;
+    date: string;      // ISO "YYYY-MM-DD" or word date
+    timeSlot: string;  // e.g. "3:00 PM"
+    status: string;
+    customerName?: string;
+    customerPhone?: string;
+    customerEmail?: string;
+    googleCalendarEventId?: string | null;
+    googleCalendarHtmlLink?: string | null;
+    notes?: string | null;
+};
 type Appointment = {
     id: number;
+    realViewingId?: number;
     leadName: string;
     leadInitials: string;
     accent: string;
@@ -140,6 +159,19 @@ type Appointment = {
     type: ApptType;
     day: number;
     time: string;
+    // Optional enrichment
+    isPortalViewing?: boolean;
+    phone?: string;
+    email?: string;
+    notes?: string;
+    segment?: string;
+    priority?: string;
+    probability?: number;
+    location?: string;
+    status?: string;
+    dateStr?: string;
+    googleCalendarEventId?: string | null;
+    googleCalendarHtmlLink?: string | null;
 };
 
 function deriveApptType(action: string): ApptType {
@@ -164,16 +196,15 @@ const APPT_DOT: Record<ApptType, string> = {
     meeting: "bg-[#8b4fc8]",
 };
 
-function buildAppointments(leads: LeadRecord[]): Appointment[] {
-    const now = new Date();
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+function buildAppointments(leads: LeadRecord[], currentYear = new Date().getFullYear(), currentMonth = new Date().getMonth()): Appointment[] {
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const appts: Appointment[] = [];
     leads.forEach((lead, i) => {
         const action = lead.action || "Follow up";
         const type = deriveApptType(action);
-        // Deterministic day based on lead id so it's stable across renders
         const day = ((Math.abs(lead.id) * 7 + i * 3) % (daysInMonth - 1)) + 1;
         const time = APPT_TIMES[(Math.abs(lead.id) + i) % APPT_TIMES.length];
+        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         appts.push({
             id: lead.id,
             leadName: lead.name,
@@ -184,6 +215,14 @@ function buildAppointments(leads: LeadRecord[]): Appointment[] {
             type,
             day,
             time,
+            dateStr,
+            phone: (lead as any).phone,
+            email: (lead as any).email,
+            notes: (lead as any).notes,
+            segment: (lead as any).segment,
+            priority: (lead as any).priority,
+            probability: (lead as any).probability,
+            location: (lead as any).location,
         });
     });
     return appts;
@@ -192,13 +231,66 @@ function buildAppointments(leads: LeadRecord[]): Appointment[] {
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAY_LABELS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
-function AgentCalendar({ leads }: { leads: LeadRecord[] }) {
+function AgentCalendar({ leads, viewings = [] }: { leads: LeadRecord[]; viewings?: PortalViewing[] }) {
+    const { activeAgent } = useAuth();
     const now = new Date();
     const [viewYear, setViewYear] = useState(now.getFullYear());
     const [viewMonth, setViewMonth] = useState(now.getMonth());
     const [selectedDay, setSelectedDay] = useState<number | null>(now.getDate());
 
-    const appointments = useMemo(() => buildAppointments(leads), [leads]);
+    // Lead-derived appointments (dynamically anchored to currently viewed month)
+    const leadAppointments = useMemo(() => buildAppointments(leads, viewYear, viewMonth), [leads, viewYear, viewMonth]);
+
+    // Real portal viewings — placed on their actual date with Google Calendar sync links
+    const viewingAppointments = useMemo((): Appointment[] => {
+        return viewings
+            .filter(v => v.status !== "Cancelled")
+            .map(v => {
+                let day = 1;
+                let month = viewMonth;
+                let year = viewYear;
+
+                const isoMatch = v.date.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+                if (isoMatch) {
+                    year = parseInt(isoMatch[1], 10);
+                    month = parseInt(isoMatch[2], 10) - 1;
+                    day = parseInt(isoMatch[3], 10);
+                } else {
+                    const parsed = new Date(v.date);
+                    if (!isNaN(parsed.getTime())) {
+                        year = parsed.getFullYear();
+                        month = parsed.getMonth();
+                        day = parsed.getDate();
+                    }
+                }
+
+                const customer = v.customerName || "VIP Client";
+                const initials = customer.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
+                return {
+                    id: v.id * -1 - 10000,
+                    realViewingId: v.id,
+                    leadName: customer,
+                    leadInitials: initials,
+                    accent: "bg-[#d7ef73] text-[#2d5a2e]",
+                    property: v.propertyTitle,
+                    action: `Confirmed viewing · ${v.propertyLocation}`,
+                    type: "viewing" as ApptType,
+                    day,
+                    time: v.timeSlot,
+                    isPortalViewing: true,
+                    location: v.propertyLocation,
+                    status: v.status,
+                    phone: v.customerPhone,
+                    email: v.customerEmail,
+                    notes: v.notes ?? undefined,
+                    dateStr: v.date,
+                    googleCalendarEventId: v.googleCalendarEventId,
+                    googleCalendarHtmlLink: v.googleCalendarHtmlLink,
+                    _month: month,
+                    _year: year,
+                } as Appointment & { _month: number; _year: number };
+            });
+    }, [viewings, viewMonth, viewYear]);
 
     const firstDow = new Date(viewYear, viewMonth, 1).getDay();
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -208,12 +300,24 @@ function AgentCalendar({ leads }: { leads: LeadRecord[] }) {
 
     const apptsByDay = useMemo(() => {
         const map: Record<number, Appointment[]> = {};
-        appointments.forEach(a => {
+
+        // 1. Lead-derived appointments
+        leadAppointments.forEach(a => {
             if (!map[a.day]) map[a.day] = [];
             map[a.day].push(a);
         });
+
+        // 2. Real portal viewings — only if they fall in the viewed month/year
+        viewingAppointments.forEach(a => {
+            const va = a as Appointment & { _month?: number; _year?: number };
+            if (va._month !== viewMonth || va._year !== viewYear) return;
+            if (!map[a.day]) map[a.day] = [];
+            // Put portal viewings first so they're always visible
+            map[a.day].unshift(a);
+        });
+
         return map;
-    }, [appointments]);
+    }, [leadAppointments, viewingAppointments, viewMonth, viewYear]);
 
     const selectedAppts = selectedDay ? (apptsByDay[selectedDay] || []) : [];
     const isToday = (d: number) =>
@@ -228,6 +332,8 @@ function AgentCalendar({ leads }: { leads: LeadRecord[] }) {
         else setViewMonth(m => m + 1);
     };
 
+    const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
+
     return (
         <section className="lead-calendar-shell">
             {/* Header */}
@@ -236,16 +342,32 @@ function AgentCalendar({ leads }: { leads: LeadRecord[] }) {
                     <CalendarDays className="size-3.5" />
                     Appointment Calendar
                 </div>
-                <div className="lead-calendar-nav">
-                    <button onClick={prevMonth} className="lead-cal-nav-btn" aria-label="Previous month">
-                        <ChevronLeft className="size-4" />
-                    </button>
-                    <span className="lead-cal-month-label">
-                        {MONTH_NAMES[viewMonth]} {viewYear}
-                    </span>
-                    <button onClick={nextMonth} className="lead-cal-nav-btn" aria-label="Next month">
-                        <ChevronRight className="size-4" />
-                    </button>
+                <div className="flex items-center gap-2">
+                    <a
+                        href={selectedDay
+                            ? `https://calendar.google.com/calendar/u/0/r/day/${viewYear}/${String(viewMonth + 1).padStart(2, "0")}/${String(selectedDay).padStart(2, "0")}`
+                            : `https://calendar.google.com/calendar/u/0/r/month/${viewYear}/${String(viewMonth + 1).padStart(2, "0")}/1`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-bold rounded-xl transition shadow-2xs cursor-pointer"
+                        title="Open your Google Calendar"
+                    >
+                        <Calendar className="size-3.5 text-blue-600" />
+                        <span>Google Calendar</span>
+                        <ExternalLink className="size-3 text-blue-500 opacity-70" />
+                    </a>
+                    <div className="lead-calendar-nav">
+                        <button onClick={prevMonth} className="lead-cal-nav-btn" aria-label="Previous month">
+                            <ChevronLeft className="size-4" />
+                        </button>
+                        <span className="lead-cal-month-label">
+                            {MONTH_NAMES[viewMonth]} {viewYear}
+                        </span>
+                        <button onClick={nextMonth} className="lead-cal-nav-btn" aria-label="Next month">
+                            <ChevronRight className="size-4" />
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -296,11 +418,25 @@ function AgentCalendar({ leads }: { leads: LeadRecord[] }) {
 
                 {/* Day detail panel */}
                 <div className="lead-cal-detail">
-                    <p className="lead-cal-detail-title">
-                        {selectedDay
-                            ? `${MONTH_NAMES[viewMonth]} ${selectedDay}`
-                            : "Select a day"}
-                    </p>
+                    <div className="flex items-center justify-between gap-2 pb-1 border-b border-[#d4e8d4]">
+                        <p className="lead-cal-detail-title m-0">
+                            {selectedDay
+                                ? `${MONTH_NAMES[viewMonth]} ${selectedDay}`
+                                : "Select a day"}
+                        </p>
+                        {selectedDay && (
+                            <a
+                                href={`https://calendar.google.com/calendar/u/0/r/day/${viewYear}/${String(viewMonth + 1).padStart(2, "0")}/${String(selectedDay).padStart(2, "0")}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 hover:text-blue-900 transition"
+                                title="Open this day in Google Calendar"
+                            >
+                                <Calendar className="size-3 text-blue-600" />
+                                <span>Day View ↗</span>
+                            </a>
+                        )}
+                    </div>
                     {selectedAppts.length === 0 ? (
                         <div className="lead-cal-detail-empty">
                             <CalendarDays className="size-8 opacity-25" />
@@ -308,20 +444,76 @@ function AgentCalendar({ leads }: { leads: LeadRecord[] }) {
                         </div>
                     ) : (
                         <div className="lead-cal-appt-list">
-                            {selectedAppts.map(a => (
-                                <div key={a.id} className={cn("lead-cal-appt-card", APPT_COLORS[a.type])}>
-                                    <div className="lead-cal-appt-top">
-                                        <span className={cn("lead-cal-appt-avatar", a.accent)}>{a.leadInitials}</span>
-                                        <div className="lead-cal-appt-info">
-                                            <p className="lead-cal-appt-name">{a.leadName}</p>
-                                            <p className="lead-cal-appt-prop">{a.property}</p>
+                            {selectedAppts.map(a => {
+                                const apptCalUrl = buildGoogleCalendarUrl({
+                                    title: a.isPortalViewing
+                                        ? `VIP Viewing: ${a.property} — ${a.leadName}`
+                                        : `${a.type.toUpperCase()}: ${a.leadName} (${a.property || "Client Discussion"})`,
+                                    location: a.location || "Kuala Lumpur, Malaysia",
+                                    date: a.dateStr || `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(a.day).padStart(2, "0")}`,
+                                    timeSlot: a.time,
+                                    specialistName: "Darryl Raushan",
+                                    notes: a.notes || a.action,
+                                    bookingId: a.realViewingId || (a.id > 0 ? a.id : undefined),
+                                    googleCalendarHtmlLink: a.googleCalendarHtmlLink,
+                                    googleCalendarEventId: a.googleCalendarEventId,
+                                });
+
+                                return (
+                                    <div
+                                        key={a.id}
+                                        className={cn(
+                                            "lead-cal-appt-card",
+                                            APPT_COLORS[a.type],
+                                            "cursor-pointer hover:brightness-95 transition-all shadow-2xs"
+                                        )}
+                                        onClick={() => setSelectedAppt(a)}
+                                        title="Click to see full appointment details"
+                                    >
+                                        {/* Top row: Avatar + Name/Property + Type Badge */}
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                <span className={cn("lead-cal-appt-avatar shrink-0", a.accent)}>{a.leadInitials}</span>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="lead-cal-appt-name truncate">{a.leadName}</p>
+                                                    <p className="lead-cal-appt-prop truncate" title={a.property}>{a.property}</p>
+                                                </div>
+                                            </div>
+                                            <span className="lead-cal-appt-badge shrink-0">{a.type}</span>
                                         </div>
-                                        <span className="lead-cal-appt-time">{a.time}</span>
+
+                                        {/* Time Slot on its own row to avoid layout collisions */}
+                                        <div className="flex items-center gap-1.5 text-xs font-bold text-inherit opacity-90 mt-1">
+                                            <Clock3 className="size-3.5 shrink-0 opacity-70" />
+                                            <span className="truncate">{a.time}</span>
+                                        </div>
+
+                                        {/* Action info */}
+                                        <p className="lead-cal-appt-action mt-0.5 line-clamp-1">{a.action}</p>
+
+                                        {/* Google Calendar Action Strip */}
+                                        <div className="mt-2 pt-2 border-t border-black/10 flex items-center justify-between gap-2">
+                                            <div className="flex items-center gap-1 text-[10.5px] font-bold text-emerald-900">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                                                <span className="truncate">{a.googleCalendarHtmlLink ? "Auto-synced to G-Cal" : "Google Calendar"}</span>
+                                            </div>
+
+                                            <a
+                                                href={apptCalUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold transition shadow-2xs cursor-pointer shrink-0"
+                                                title="Open Event in Google Calendar"
+                                            >
+                                                <Calendar className="size-3" />
+                                                <span>Google Calendar</span>
+                                                <ExternalLink className="size-2.5 opacity-80" />
+                                            </a>
+                                        </div>
                                     </div>
-                                    <p className="lead-cal-appt-action">{a.action}</p>
-                                    <span className="lead-cal-appt-badge">{a.type}</span>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                     {/* Legend */}
@@ -335,6 +527,281 @@ function AgentCalendar({ leads }: { leads: LeadRecord[] }) {
                     </div>
                 </div>
             </div>
+
+            {/* ── Appointment Detail Drawer ───────────────────────────────────── */}
+            {selectedAppt && (
+                <div
+                    style={{
+                        position: "fixed", inset: 0, zIndex: 50,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        background: "rgba(18,30,44,0.45)", backdropFilter: "blur(4px)",
+                    }}
+                    onClick={() => setSelectedAppt(null)}
+                >
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            background: "#fff",
+                            borderRadius: 18,
+                            boxShadow: "0 24px 80px rgba(18,30,44,0.22)",
+                            width: "min(92vw, 420px)",
+                            overflow: "hidden",
+                            fontFamily: "inherit",
+                        }}
+                    >
+                        {/* Colour band header */}
+                        <div style={{
+                            background: selectedAppt.isPortalViewing ? "#d7ef73" :
+                                selectedAppt.type === "call" ? "#dbeeff" :
+                                selectedAppt.type === "meeting" ? "#ecdeff" : "#ffecd4",
+                            padding: "20px 22px 16px",
+                            display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+                        }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                <span style={{
+                                    width: 42, height: 42, borderRadius: 12,
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                    fontWeight: 800, fontSize: 15,
+                                    background: "rgba(0,0,0,0.08)", color: "inherit",
+                                    flexShrink: 0,
+                                }}>
+                                    {selectedAppt.leadInitials}
+                                </span>
+                                <div>
+                                    <p style={{ fontWeight: 800, fontSize: 16, margin: 0, color: "#1a2e1c" }}>
+                                        {selectedAppt.leadName}
+                                    </p>
+                                    <p style={{ fontSize: 12, margin: "2px 0 0", opacity: 0.7, color: "#1a2e1c" }}>
+                                        {selectedAppt.time} · {MONTH_NAMES[viewMonth]} {selectedDay}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setSelectedAppt(null)}
+                                style={{
+                                    background: "rgba(0,0,0,0.08)", border: "none", borderRadius: 8,
+                                    width: 28, height: 28, cursor: "pointer", display: "flex",
+                                    alignItems: "center", justifyContent: "center", flexShrink: 0,
+                                }}
+                                aria-label="Close"
+                            >
+                                <X className="size-4" />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div style={{ padding: "18px 22px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
+
+                            {/* Type badge */}
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                <span style={{
+                                    fontSize: 11, fontWeight: 700, padding: "3px 10px",
+                                    borderRadius: 8, textTransform: "capitalize",
+                                    background: selectedAppt.type === "viewing" ? "#d7ef73" :
+                                        selectedAppt.type === "call" ? "#dbeeff" :
+                                        selectedAppt.type === "meeting" ? "#ecdeff" : "#ffecd4",
+                                    color: selectedAppt.type === "viewing" ? "#2d5a2e" :
+                                        selectedAppt.type === "call" ? "#1e4d7a" :
+                                        selectedAppt.type === "meeting" ? "#4a1d7a" : "#7a4010",
+                                }}>
+                                    {selectedAppt.isPortalViewing ? "✓ Portal Booking" : selectedAppt.type}
+                                </span>
+                                {selectedAppt.priority && (
+                                    <span style={{
+                                        fontSize: 11, fontWeight: 700, padding: "3px 10px",
+                                        borderRadius: 8, background: selectedAppt.priority === "High" ? "#fee2e2" : selectedAppt.priority === "Medium" ? "#fef3c7" : "#f1f5f9",
+                                        color: selectedAppt.priority === "High" ? "#991b1b" : selectedAppt.priority === "Medium" ? "#92400e" : "#475569",
+                                    }}>
+                                        {selectedAppt.priority} priority
+                                    </span>
+                                )}
+                                {selectedAppt.status && (
+                                    <span style={{
+                                        fontSize: 11, fontWeight: 700, padding: "3px 10px",
+                                        borderRadius: 8, background: selectedAppt.status === "Confirmed" ? "#f0fdf4" : "#fef2f2",
+                                        color: selectedAppt.status === "Confirmed" ? "#15803d" : "#b91c1c",
+                                    }}>
+                                        {selectedAppt.status}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Property */}
+                            <div>
+                                <p style={{ fontSize: 11, fontWeight: 600, color: "#8a9ba8", textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 4px" }}>Property</p>
+                                <p style={{ fontSize: 14, fontWeight: 700, color: "#1e3a4a", margin: 0 }}>{selectedAppt.property}</p>
+                                {selectedAppt.location && (
+                                    <p style={{ fontSize: 12, color: "#6b8090", margin: "2px 0 0" }}>📍 {selectedAppt.location}</p>
+                                )}
+                            </div>
+
+                            {/* Next action / booking note */}
+                            <div>
+                                <p style={{ fontSize: 11, fontWeight: 600, color: "#8a9ba8", textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 4px" }}>Next Action</p>
+                                <p style={{ fontSize: 13, color: "#2c4a3e", margin: 0, lineHeight: 1.5 }}>{selectedAppt.action}</p>
+                            </div>
+
+                            {/* Segment + probability (lead-only) */}
+                            {selectedAppt.segment && (
+                                <div style={{ display: "flex", gap: 20 }}>
+                                    <div>
+                                        <p style={{ fontSize: 11, fontWeight: 600, color: "#8a9ba8", textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 2px" }}>Segment</p>
+                                        <p style={{ fontSize: 13, fontWeight: 600, color: "#1e3a4a", margin: 0 }}>{selectedAppt.segment}</p>
+                                    </div>
+                                    {selectedAppt.probability !== undefined && (
+                                        <div>
+                                            <p style={{ fontSize: 11, fontWeight: 600, color: "#8a9ba8", textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 2px" }}>Close fit</p>
+                                            <p style={{ fontSize: 13, fontWeight: 700, color: "#2d6a4f", margin: 0 }}>{selectedAppt.probability}%</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Notes (lead-only) */}
+                            {selectedAppt.notes && (
+                                <div>
+                                    <p style={{ fontSize: 11, fontWeight: 600, color: "#8a9ba8", textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 4px" }}>Notes</p>
+                                    <p style={{ fontSize: 12, color: "#4a6070", margin: 0, lineHeight: 1.6, background: "#f6f8fa", borderRadius: 8, padding: "8px 10px" }}>{selectedAppt.notes}</p>
+                                </div>
+                            )}
+
+                            {/* Google Calendar status notification strip */}
+                            {(() => {
+                                const apptDate = selectedAppt.dateStr || `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(selectedAppt.day).padStart(2, "0")}`;
+                                const apptDateParsed = new Date(apptDate);
+                                const dy = apptDateParsed.getFullYear();
+                                const dm = apptDateParsed.getMonth() + 1;
+                                const dd = apptDateParsed.getDate();
+                                const dayViewUrl = `https://calendar.google.com/calendar/u/0/r/day/${dy}/${String(dm).padStart(2, "0")}/${String(dd).padStart(2, "0")}`;
+                                const eventUrl = selectedAppt.googleCalendarEventId
+                                    ? `https://www.google.com/calendar/event?eid=${btoa(`${selectedAppt.googleCalendarEventId} darrylraushansingh@gmail.com`).replace(/=+$/, "")}`
+                                    : (selectedAppt.googleCalendarHtmlLink || null);
+                                return (
+                                    <div style={{
+                                        background: "#eff6ff",
+                                        border: "1px solid #bfdbfe",
+                                        borderRadius: 12,
+                                        padding: "10px 14px",
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 8,
+                                    }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                            <span style={{
+                                                width: 22, height: 22, borderRadius: "50%",
+                                                background: eventUrl ? "#3b82f6" : "#6b7280", color: "#fff",
+                                                display: "flex", alignItems: "center", justifyContent: "center",
+                                                fontSize: 12, fontWeight: 800, flexShrink: 0,
+                                            }}>{eventUrl ? "✓" : "📅"}</span>
+                                            <div>
+                                                <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#1e3a8a" }}>
+                                                    {eventUrl ? "Auto-Saved to Google Calendar" : "Open Google Calendar"}
+                                                </p>
+                                                <p style={{ margin: 0, fontSize: 11, color: "#3b82f6" }}>
+                                                    {eventUrl ? `Event synced · ${activeAgent.email || "darrylraushansingh@gmail.com"}` : "View your calendar for this date"}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div style={{ display: "flex", gap: 6 }}>
+                                            {eventUrl && (
+                                                <a
+                                                    href={eventUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    style={{
+                                                        flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center",
+                                                        gap: 5, padding: "6px 10px", background: "#2563eb", color: "#fff",
+                                                        borderRadius: 8, fontSize: 11, fontWeight: 800, textDecoration: "none",
+                                                    }}
+                                                >
+                                                    Open Event ↗
+                                                </a>
+                                            )}
+                                            <a
+                                                href={dayViewUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                style={{
+                                                    flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center",
+                                                    gap: 5, padding: "6px 10px",
+                                                    background: eventUrl ? "#e0e7ff" : "#2563eb",
+                                                    color: eventUrl ? "#3730a3" : "#fff",
+                                                    borderRadius: 8, fontSize: 11, fontWeight: 800, textDecoration: "none",
+                                                    border: eventUrl ? "1px solid #c7d2fe" : "none",
+                                                }}
+                                            >
+                                                {eventUrl ? "Day View" : "Open Calendar"} ↗
+                                            </a>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* Contact & Calendar Action buttons */}
+                            <div style={{ display: "flex", gap: 8, paddingTop: 6 }}>
+                                {selectedAppt.phone && (
+                                    <a
+                                        href={`tel:${selectedAppt.phone}`}
+                                        style={{
+                                            flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+                                            gap: 6, padding: "9px 0", borderRadius: 10, fontSize: 13, fontWeight: 700,
+                                            background: "#e8f5e9", color: "#2e7d32", textDecoration: "none",
+                                        }}
+                                    >
+                                        📞 Call
+                                    </a>
+                                )}
+                                {selectedAppt.email && (
+                                    <a
+                                        href={`mailto:${selectedAppt.email}`}
+                                        style={{
+                                            flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+                                            gap: 6, padding: "9px 0", borderRadius: 10, fontSize: 13, fontWeight: 700,
+                                            background: "#e3f2fd", color: "#1565c0", textDecoration: "none",
+                                        }}
+                                    >
+                                        ✉️ Email
+                                    </a>
+                                )}
+                                {(() => {
+                                    const apptDate2 = selectedAppt.dateStr || `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(selectedAppt.day).padStart(2, "0")}`;
+                                    const apptDate2Parsed = new Date(apptDate2);
+                                    const dy2 = apptDate2Parsed.getFullYear();
+                                    const dm2 = apptDate2Parsed.getMonth() + 1;
+                                    const dd2 = apptDate2Parsed.getDate();
+                                    const calUrl = selectedAppt.googleCalendarEventId
+                                        ? `https://www.google.com/calendar/event?eid=${btoa(`${selectedAppt.googleCalendarEventId} darrylraushansingh@gmail.com`).replace(/=+$/, "")}`
+                                        : (selectedAppt.googleCalendarHtmlLink || `https://calendar.google.com/calendar/u/0/r/day/${dy2}/${String(dm2).padStart(2, "0")}/${String(dd2).padStart(2, "0")}`);
+                                    return (
+                                        <a
+                                            href={calUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            style={{
+                                                flex: 1.3,
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                gap: 6,
+                                                padding: "9px 0",
+                                                borderRadius: 10,
+                                                fontSize: 13,
+                                                fontWeight: 800,
+                                                background: "#2563eb",
+                                                color: "#ffffff",
+                                                textDecoration: "none",
+                                                boxShadow: "0 2px 8px rgba(37,99,235,0.22)",
+                                            }}
+                                        >
+                                            📅 Google Calendar
+                                        </a>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </section>
     );
 }
@@ -403,8 +870,8 @@ function LeadRow({ lead, index, onSelect }: { lead: LeadRecord; index: number; o
             <TableCell className="font-mono text-[14px] font-bold text-[#214f4d]">{formatRM(value)}</TableCell>
             <TableCell className="max-w-[160px] truncate text-[13px] text-[#426b62]">{lead.property}</TableCell>
             <TableCell className="max-w-[170px] truncate text-[13px] text-[#668078]">{lead.action}</TableCell>
-            <TableCell onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            <TableCell onClick={(e) => e.stopPropagation()} className="text-center">
+                <div className="flex items-center justify-center gap-1.5 transition-opacity">
                     {lead.phone && (
                         <a
                             href={`tel:${lead.phone}`}
@@ -446,9 +913,16 @@ export default function Leads() {
     const { data: apiLeads, isLoading } = trpc.leads.list.useQuery({
         search: search || undefined,
         agentId: activeAgent.id,
+        limit: 500,
         priority: priorityFilter !== "all" ? priorityFilter.charAt(0).toUpperCase() + priorityFilter.slice(1) : undefined,
         segment: segmentFilter !== "all" ? segmentFilter : undefined,
     });
+
+    // Real confirmed/pending viewings booked via the customer portal
+    const { data: agentViewings = [] } = trpc.viewings.listByAgent.useQuery(
+        { agentId: activeAgent.id, limit: 20 },
+        { refetchInterval: 30_000 }
+    );
 
     const createLead = trpc.leads.create.useMutation({
         onSuccess: () => {
@@ -470,7 +944,7 @@ export default function Leads() {
             const matchesSegment = segmentFilter === "all" || lead.segment === segmentFilter;
             return matchesSearch && matchesPriority && matchesSegment;
         });
-        return filtered.slice(0, 20); // Max 20 leads per agent
+        return filtered;
     }, [search, priorityFilter, segmentFilter, activeAgent.id]);
     const unfilteredLeads = apiLeads?.length ? apiLeads : previewLeads;
     const leads = viewingFocus ? unfilteredLeads.filter((lead) => /view|tour|show/i.test(lead.action || "")) : unfilteredLeads;
@@ -656,17 +1130,20 @@ export default function Leads() {
                     </div>
 
                     <div className="lead-table-scroll-wrapper">
-                        <div className="overflow-x-auto">
+                        <div className="lead-table-body-scroll overflow-x-auto">
                             <Table className="lead-table">
                                 <TableHeader className="lead-table-sticky-head">
                                     <TableRow className="hover:bg-transparent">
-                                        <TableHead>Lead</TableHead><TableHead>Segment</TableHead><TableHead>Priority</TableHead><TableHead>Probability</TableHead><TableHead>Value</TableHead><TableHead>Property</TableHead><TableHead>Next action</TableHead><TableHead>Contact</TableHead>
+                                        <TableHead className="w-[220px]">Lead</TableHead>
+                                        <TableHead className="w-[140px]">Segment</TableHead>
+                                        <TableHead className="w-[110px]">Priority</TableHead>
+                                        <TableHead className="w-[140px]">Probability</TableHead>
+                                        <TableHead className="w-[150px]">Value</TableHead>
+                                        <TableHead className="w-[200px]">Property</TableHead>
+                                        <TableHead className="w-[200px]">Next action</TableHead>
+                                        <TableHead className="w-[90px] text-center">Contact</TableHead>
                                     </TableRow>
                                 </TableHeader>
-                            </Table>
-                        </div>
-                        <div className="lead-table-body-scroll overflow-x-auto">
-                            <Table className="lead-table">
                                 <TableBody>
                                     {isLoading &&
                                         Array.from({ length: 4 }).map((_, i) => (
@@ -700,7 +1177,7 @@ export default function Leads() {
                         </div>
                     </div>
                 </section>
-                <AgentCalendar leads={leads} />
+                <AgentCalendar leads={leads} viewings={agentViewings} />
             </main>
 
             {/* Lead Profile & Rating Breakdown Modal */}

@@ -68,8 +68,8 @@ DECISION CARD SPECIFICATION:
 >>>
 `;
 
-export const CUSTOMER_CONCIERGE_PROMPT_HEADER = `You are the AI Property Concierge for Properly Marketplace in Malaysia.
-You are an intelligent, polite, warm, and highly knowledgeable assistant speaking directly to prospective property buyers, homeowners, and real estate investors.
+export const CUSTOMER_CONCIERGE_PROMPT_HEADER = `You are the Virtual Butler & Luxury Property Concierge for Properly Marketplace in Malaysia.
+You are a distinguished, polite, warm, and highly knowledgeable personal concierge speaking directly to prospective property buyers, homeowners, and real estate investors.
 
 YOUR CORE ROLE & GUIDELINES:
 1. Help buyers explore and compare our active residential listings (prices, bedroom counts, square footage, amenities, developer reputation, locations such as KLCC, Damansara Heights, Mont Kiara, Bangsar, etc.).
@@ -150,7 +150,7 @@ export async function processAiChat(
       console.error("[Customer AI Concierge] Error fetching properties:", err);
     }
 
-    const customerContextStr = formatCustomerContextForPrompt(properties);
+    const customerContextStr = formatCustomerContextForPrompt(properties, lastUserMessage);
 
     if (hasLLMConfigured()) {
       try {
@@ -215,7 +215,7 @@ export async function processAiChat(
     };
   }
 
-  const systemContextStr = formatSystemContextForPrompt(context);
+  const systemContextStr = formatSystemContextForPrompt(context, lastUserMessage);
 
   // If LLM is configured, invoke LLM
   if (hasLLMConfigured()) {
@@ -299,10 +299,11 @@ ${contextStr}`;
     return {
       summary: text,
       provider: "gemini",
-      model: "gemini-3.6-flash",
+      model: res.model || "gemini-3.6-flash",
     };
   } catch (err) {
     console.warn("[AI Summary] Gemini summary failed, attempting Groq fallback:", err);
+    const effectiveConfig = resolveEffectiveConfig();
     const res = await invokeLLM({
       messages: [
         { role: "system", content: systemPrompt },
@@ -312,8 +313,8 @@ ${contextStr}`;
     });
     return {
       summary: extractAssistantText(res),
-      provider: "groq",
-      model: "qwen/qwen3.6-27b",
+      provider: effectiveConfig.provider || "groq",
+      model: res.model || effectiveConfig.model || "qwen/qwen3.6-27b",
     };
   }
 }
@@ -358,10 +359,11 @@ Write a single, natural paragraph (3–4 sentences max) explaining in plain conv
     return {
       summary: text,
       provider: "gemini",
-      model: "gemini-3.6-flash",
+      model: res.model || "gemini-3.6-flash",
     };
   } catch (err) {
     console.warn("[AI Fit Analysis] Gemini failed, attempting Groq fallback:", err);
+    const effectiveConfig = resolveEffectiveConfig();
     const res = await invokeLLM({
       messages: [
         {
@@ -374,8 +376,8 @@ Write a single, natural paragraph (3–4 sentences max) explaining in plain conv
     });
     return {
       summary: extractAssistantText(res),
-      provider: "groq",
-      model: "qwen/qwen3.6-27b",
+      provider: effectiveConfig.provider || "groq",
+      model: res.model || effectiveConfig.model || "qwen/qwen3.6-27b",
     };
   }
 }

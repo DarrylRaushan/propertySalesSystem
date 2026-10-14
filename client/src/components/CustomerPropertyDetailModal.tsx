@@ -21,6 +21,7 @@ import {
   Image as ImageIcon,
   RotateCcw,
   Sparkle,
+  Users,
 } from "lucide-react";
 import { useAuth, PROPERTY_AGENTS } from "@/contexts/AuthContext";
 import ModelViewer from "@/components/ModelViewer";
@@ -32,6 +33,7 @@ interface CustomerPropertyDetailModalProps {
   property: any;
   onBookViewing?: (property: any) => void;
   onCalculateMortgage?: (propertyPrice: number) => void;
+  onOpenMatchmaker?: (property: any) => void;
   isAgentView?: boolean;
 }
 
@@ -41,6 +43,7 @@ export default function CustomerPropertyDetailModal({
   property,
   onBookViewing,
   onCalculateMortgage,
+  onOpenMatchmaker,
   isAgentView = false,
 }: CustomerPropertyDetailModalProps) {
   const {
@@ -389,6 +392,17 @@ export default function CustomerPropertyDetailModal({
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto">
+                {isAgentView && onOpenMatchmaker && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenMatchmaker(property)}
+                    className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-[#d7ef73] hover:bg-[#c9e361] text-[#153941] text-xs font-black transition flex items-center justify-center gap-1.5 shadow"
+                    title="Reverse Matchmaker: Match buyers from your CRM"
+                  >
+                    <Users size={14} />
+                    Match Buyers
+                  </button>
+                )}
                 <a
                   href={`tel:${activeAgent.phone}`}
                   className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition flex items-center justify-center gap-1.5 border border-white/20"
@@ -452,6 +466,18 @@ export default function CustomerPropertyDetailModal({
                 <Heart size={15} className={isSaved ? "fill-rose-600" : ""} />
                 {isSaved ? "Shortlisted" : "Save"}
               </button>
+
+              {isAgentView && onOpenMatchmaker && (
+                <button
+                  type="button"
+                  onClick={() => onOpenMatchmaker(property)}
+                  className="px-4 py-2 rounded-xl bg-[#10484b] hover:bg-[#234d4d] text-[#d7ef73] text-xs font-black shadow-md transition flex items-center gap-1.5 border border-[#234d4d]"
+                  title="Reverse Matchmaker: Match buyers from your CRM"
+                >
+                  <Sparkles size={14} className="text-[#d7ef73]" />
+                  <span>Match Buyers</span>
+                </button>
+              )}
 
               {onBookViewing && (
                 <button

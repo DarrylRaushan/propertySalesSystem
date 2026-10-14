@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
 export type UserRole = "guest" | "customer" | "agent";
 
@@ -44,6 +45,10 @@ export type BookedViewing = {
   date: string;
   timeSlot: string;
   status: "Confirmed" | "Pending" | "Completed" | "Cancelled";
+  cancelledVia?: string;
+  cancellationReason?: string;
+  googleCalendarEventId?: string;
+  googleCalendarHtmlLink?: string;
   notes?: string;
   createdAt: string;
 };
@@ -81,6 +86,18 @@ export const PROPERTY_AGENTS: PropertyAgent[] = [
     specialization: "New Launch Campaigns & VIP Expats",
     avatarBg: "bg-amber-100",
     avatarColor: "text-amber-800",
+  },
+  {
+    // 🔴 REAL ACCOUNT — Bert Bob (bertbob944@gmail.com)
+    id: "darryl",
+    name: "Darryl Raushan",
+    initials: "DR",
+    role: "VIP Luxury Lead Specialist",
+    email: "bertbob944@gmail.com",
+    phone: "+60 18-386 5414",
+    specialization: "Ultra-Luxury Penthouses & Private Portfolio",
+    avatarBg: "bg-rose-100",
+    avatarColor: "text-rose-800",
   },
 ];
 
@@ -130,15 +147,26 @@ export const CUSTOMER_USERS: CustomerUser[] = [
     investmentGoal: "Capital Appreciation",
     preferredFeatures: "Private Lift,Sky Pool,Golf View,Concierge",
   },
+  {
+    // 🔴 REAL ACCOUNT — Darryl Raushan Singh (darrylraushansingh@gmail.com)
+    id: "4",
+    dbId: 4,
+    name: "Darryl Raushan",
+    email: "darrylraushansingh@gmail.com",
+    phone: "+60 18-386 5414",
+    avatarInitials: "DR",
+    segment: "Developer & VIP Preview",
+    budget: "RM 1,500,000 - RM 5,000,000",
+    preferredLocation: "Mont Kiara, KLCC & Damansara",
+    preferredTypes: "Penthouse,Condominium,Serviced residence",
+    minBeds: 2,
+    investmentGoal: "System Testing & Portfolio",
+    preferredFeatures: "Sky Pool,Private Lift,Smart Home,Concierge",
+  },
 ];
 
-// Agent emails for quick lookup
+// Agent emails for quick UI lookup (no passwords here — validated server-side)
 const AGENT_EMAILS = new Set(PROPERTY_AGENTS.map((a) => a.email.toLowerCase()));
-const AGENT_PASSWORDS: Record<string, string> = {
-  "hannah@properly.my": "hannah123",
-  "amir@properly.my": "amir123",
-  "chloe@properly.my": "chloe123",
-};
 
 interface AuthContextType {
   role: UserRole;
@@ -174,6 +202,8 @@ interface AuthContextType {
   bookedViewings: BookedViewing[];
   bookViewing: (viewing: Omit<BookedViewing, "id" | "status" | "createdAt">) => Promise<BookedViewing>;
   cancelViewing: (id: string) => Promise<void>;
+  dismissViewing: (id: string) => Promise<void>;
+  rescheduleViewing: (id: string, date: string, timeSlot: string, notes?: string) => Promise<BookedViewing>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -229,14 +259,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [pendingCallback, setPendingCallback] = useState<(() => void) | null>(null);
 
   // tRPC mutations
+  const agentLoginMutation = trpc.auth.agentLogin.useMutation();
   const loginCheckMutation = trpc.auth.loginCheck.useMutation();
   const updateProfileMutation = trpc.customerPortal.updateProfile.useMutation({
     onSuccess: () => utils.customerPortal.getProfile.invalidate(),
   });
   const toggleShortlistMutation = trpc.customerPortal.toggleShortlist.useMutation({
     onSuccess: (result, vars) => {
+      setSavedPropertyIds((prev) => {
+        const without = prev.filter((id) => id !== vars.propertyId);
+        return result.saved ? [...without, vars.propertyId] : without;
+      });
+    },
+    onError: (_error, vars) => {
+      // Revert optimistic toggle if server mutation fails
       setSavedPropertyIds((prev) =>
-        result.saved ? [...prev, vars.propertyId] : prev.filter((id) => id !== vars.propertyId)
+        prev.includes(vars.propertyId)
+          ? prev.filter((id) => id !== vars.propertyId)
+          : [...prev, vars.propertyId]
       );
     },
   });
@@ -244,6 +284,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     onSuccess: () => utils.customerPortal.getViewings.invalidate(),
   });
   const cancelViewingMutation = trpc.customerPortal.cancelViewing.useMutation({
+    onSuccess: () => utils.customerPortal.getViewings.invalidate(),
+  });
+  const deleteViewingMutation = trpc.customerPortal.deleteViewing.useMutation({
+    onSuccess: () => utils.customerPortal.getViewings.invalidate(),
+  });
+  const rescheduleViewingMutation = trpc.customerPortal.rescheduleViewing.useMutation({
     onSuccess: () => utils.customerPortal.getViewings.invalidate(),
   });
 
@@ -258,30 +304,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [role, activeCustomer?.dbId]);
 
-  // Load viewings from DB when customer is set
+  // Load viewings from DB when customer is set, and periodically poll for real-time WhatsApp updates
   useEffect(() => {
+    let intervalId: any = null;
+
+    const fetchViewings = () => {
+      if (role === "customer" && activeCustomer?.dbId) {
+        utils.customerPortal.getViewings.fetch({ customerAccountId: activeCustomer.dbId }).then((rows) => {
+          setBookedViewings(rows.map((r) => ({
+            id: String(r.id),
+            propertyId: r.propertyId,
+            propertyTitle: r.propertyTitle,
+            propertyLocation: r.propertyLocation,
+            propertyPrice: r.propertyPrice,
+            propertyImage: r.propertyImage ?? undefined,
+            agentId: r.agentId,
+            agentName: r.agentName,
+            agentPhone: r.agentPhone,
+            date: r.date,
+            timeSlot: r.timeSlot,
+            status: (r.status as BookedViewing["status"]) ?? "Confirmed",
+            cancelledVia: r.cancelledVia ?? undefined,
+            cancellationReason: r.cancellationReason ?? undefined,
+            googleCalendarEventId: r.googleCalendarEventId ?? undefined,
+            googleCalendarHtmlLink: r.googleCalendarHtmlLink ?? undefined,
+            notes: r.notes ?? undefined,
+            createdAt: r.createdAt,
+          })));
+        }).catch(() => setBookedViewings([]));
+      } else if (role !== "customer") {
+        setBookedViewings([]);
+      }
+    };
+
+    fetchViewings();
+
     if (role === "customer" && activeCustomer?.dbId) {
-      utils.customerPortal.getViewings.fetch({ customerAccountId: activeCustomer.dbId }).then((rows) => {
-        setBookedViewings(rows.map((r) => ({
-          id: String(r.id),
-          propertyId: r.propertyId,
-          propertyTitle: r.propertyTitle,
-          propertyLocation: r.propertyLocation,
-          propertyPrice: r.propertyPrice,
-          propertyImage: r.propertyImage ?? undefined,
-          agentId: r.agentId,
-          agentName: r.agentName,
-          agentPhone: r.agentPhone,
-          date: r.date,
-          timeSlot: r.timeSlot,
-          status: (r.status as BookedViewing["status"]) ?? "Confirmed",
-          notes: r.notes ?? undefined,
-          createdAt: r.createdAt,
-        })));
-      }).catch(() => setBookedViewings([]));
-    } else if (role !== "customer") {
-      setBookedViewings([]);
+      intervalId = setInterval(fetchViewings, 4000);
     }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [role, activeCustomer?.dbId]);
 
   const activeAgent = PROPERTY_AGENTS.find((a) => a.id === activeAgentId) || PROPERTY_AGENTS[0];
@@ -328,19 +392,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (emailInput: string, password?: string): Promise<{ success: boolean; role?: UserRole; error?: string }> => {
     const cleanEmail = emailInput.trim().toLowerCase();
 
-    // ── Agent login (static, DB-less) ─────────────────────────────────────
-    const matchedAgent = PROPERTY_AGENTS.find((a) => a.email.toLowerCase() === cleanEmail);
-    if (matchedAgent) {
-      const agentPwd = AGENT_PASSWORDS[cleanEmail];
-      if (agentPwd && password && password !== agentPwd) {
-        return { success: false, error: "Incorrect password for agent account." };
+    // ── Agent login (server-side validated — passwords never in browser) ───
+    if (AGENT_EMAILS.has(cleanEmail)) {
+      try {
+        const result = await agentLoginMutation.mutateAsync({
+          email: cleanEmail,
+          password: password || "",
+        });
+        if (!result.success) {
+          return { success: false, error: (result as any).error || "Incorrect agent credentials." };
+        }
+        switchAgent((result as any).agentId);
+        saveRoleToStorage("agent");
+        persistCustomer(null);
+        setIsAuthModalOpen(false);
+        if (pendingCallback) { pendingCallback(); setPendingCallback(null); }
+        return { success: true, role: "agent" };
+      } catch (err: any) {
+        return { success: false, error: err?.message || "Agent login failed. Please try again." };
       }
-      switchAgent(matchedAgent.id);
-      saveRoleToStorage("agent");
-      persistCustomer(null);
-      setIsAuthModalOpen(false);
-      if (pendingCallback) { pendingCallback(); setPendingCallback(null); }
-      return { success: true, role: "agent" };
     }
 
     // ── Customer login (DB-backed) ─────────────────────────────────────────
@@ -382,6 +452,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   /** Quick-login for dev switching (keeps existing patterns for agent switching) */
   const quickLogin = (targetRole: "customer" | "agent", accountId?: string) => {
+    toast.dismiss();
     if (targetRole === "agent") {
       const agentId = accountId || PROPERTY_AGENTS[0].id;
       switchAgent(agentId);
@@ -407,11 +478,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ── Shortlist ────────────────────────────────────────────────────────────
   const toggleSaveProperty = (propertyId: number) => {
     if (!activeCustomer?.dbId) return;
+    const previousSaved = savedPropertyIds;
     // Optimistic update
     setSavedPropertyIds((prev) =>
       prev.includes(propertyId) ? prev.filter((id) => id !== propertyId) : [...prev, propertyId]
     );
-    toggleShortlistMutation.mutate({ customerAccountId: activeCustomer.dbId, propertyId });
+    toggleShortlistMutation.mutate(
+      { customerAccountId: activeCustomer.dbId, propertyId },
+      {
+        onError: () => {
+          // Explicit rollback to previous snapshot on error
+          setSavedPropertyIds(previousSaved);
+        },
+      }
+    );
   };
 
   const isPropertySaved = (propertyId: number) => savedPropertyIds.includes(propertyId);
@@ -446,10 +526,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       date: result.date,
       timeSlot: result.timeSlot,
       status: (result.status as BookedViewing["status"]) ?? "Confirmed",
+      googleCalendarEventId: result.googleCalendarEventId ?? undefined,
+      googleCalendarHtmlLink: result.googleCalendarHtmlLink ?? undefined,
       notes: result.notes ?? undefined,
       createdAt: result.createdAt,
     };
-    setBookedViewings((prev) => [newBooking, ...prev]);
+    setBookedViewings((prev) => {
+      // Dedup guard: don't add if this ID already exists in local state
+      if (prev.some((b) => b.id === String(result.id))) return prev;
+      return [newBooking, ...prev];
+    });
     return newBooking;
   };
 
@@ -459,6 +545,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setBookedViewings((prev) =>
       prev.map((b) => (b.id === id ? { ...b, status: "Cancelled" as const } : b))
     );
+  };
+
+  const dismissViewing = async (id: string) => {
+    if (!activeCustomer?.dbId) return;
+    // Optimistic remove from local state immediately
+    setBookedViewings((prev) => prev.filter((b) => b.id !== id));
+    try {
+      await deleteViewingMutation.mutateAsync({ id: Number(id), customerAccountId: activeCustomer.dbId });
+    } catch (e) {
+      // Re-fetch on error to restore consistent state
+      utils.customerPortal.getViewings.invalidate();
+    }
+  };
+
+  const rescheduleViewing = async (id: string, date: string, timeSlot: string, notes?: string): Promise<BookedViewing> => {
+    if (!activeCustomer?.dbId) throw new Error("Not logged in as customer");
+    const result = await rescheduleViewingMutation.mutateAsync({
+      id: Number(id),
+      customerAccountId: activeCustomer.dbId,
+      date,
+      timeSlot,
+      notes,
+    });
+    if (!result) throw new Error("Failed to reschedule viewing");
+    const updated: BookedViewing = {
+      id: String(result.id),
+      propertyId: result.propertyId,
+      propertyTitle: result.propertyTitle,
+      propertyLocation: result.propertyLocation,
+      propertyPrice: result.propertyPrice,
+      propertyImage: result.propertyImage ?? undefined,
+      agentId: result.agentId,
+      agentName: result.agentName,
+      agentPhone: result.agentPhone,
+      date: result.date,
+      timeSlot: result.timeSlot,
+      status: "Confirmed",
+      cancelledVia: undefined,
+      cancellationReason: undefined,
+      googleCalendarEventId: result.googleCalendarEventId ?? undefined,
+      googleCalendarHtmlLink: result.googleCalendarHtmlLink ?? undefined,
+      notes: result.notes ?? undefined,
+      createdAt: result.createdAt,
+    };
+    setBookedViewings((prev) => prev.map((b) => (b.id === id ? updated : b)));
+    return updated;
   };
 
   // ── Profile Updates ──────────────────────────────────────────────────────
@@ -537,6 +669,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         bookedViewings,
         bookViewing,
         cancelViewing,
+        dismissViewing,
+        rescheduleViewing,
       }}
     >
       {children}

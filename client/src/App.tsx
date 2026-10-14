@@ -90,15 +90,25 @@ function AiChatOverlay() {
   );
 }
 
+import WhatsAppLiveWidget from "./components/WhatsAppLiveWidget";
+
+/** Renders the WhatsApp concierge widget only for customers/buyers — hidden from agents */
+function CustomerWhatsAppWidget() {
+  const { isAgent } = useAuth();
+  if (isAgent) return null;
+  return <WhatsAppLiveWidget />;
+}
+
 function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
         <ThemeProvider defaultTheme="light">
           <TooltipProvider>
-            <Toaster />
+            <Toaster position="top-right" />
             <Router />
             <AiChatOverlay />
+            <CustomerWhatsAppWidget />
           </TooltipProvider>
         </ThemeProvider>
       </AuthProvider>

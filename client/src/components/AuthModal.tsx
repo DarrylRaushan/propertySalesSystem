@@ -68,7 +68,6 @@ export default function AuthModal() {
 
   const handleDemoClick = (role: "customer" | "agent", accountId: string, name: string) => {
     quickLogin(role, accountId);
-    toast.success(`Signed in as ${name} (${role === "agent" ? "Property Agent" : "Customer"})`);
     closeAuthModal();
   };
 
@@ -243,14 +242,68 @@ export default function AuthModal() {
             <div className="pt-3 border-t border-[#dfe6df]">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#234d4d]">
-                  1-Click Demo Profiles
+                  1-Click Quick Access
                 </span>
                 <span className="text-[10px] text-[#6e897e] font-semibold">Instant Switch</span>
               </div>
 
-              <div className="space-y-1.5">
-                {/* Customer Demo Account */}
-                <div className="text-[10px] text-[#6e897e] font-bold px-1">Customer / Buyer Role:</div>
+              <div className="space-y-2">
+                {/* 🔴 Real Live Accounts */}
+                <div className="flex items-center gap-1.5 px-1">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0" />
+                  <span className="text-[10px] text-rose-600 font-bold uppercase tracking-wider">Real Accounts (Live)</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {/* Real customer — Darryl */}
+                  {(() => {
+                    const darryl = CUSTOMER_USERS.find((c) => c.id === "4");
+                    if (!darryl) return null;
+                    return (
+                      <button
+                        key={darryl.id}
+                        type="button"
+                        onClick={() => handleDemoClick("customer", darryl.id, darryl.name)}
+                        className="p-2 text-left bg-rose-50 hover:bg-rose-100 border border-rose-300 rounded-xl transition-all group"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-5 h-5 rounded-full bg-rose-600 text-white font-bold text-[9px] flex items-center justify-center shrink-0">
+                            {darryl.avatarInitials}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-rose-800 truncate">{darryl.name}</p>
+                            <p className="text-[10px] text-rose-500 truncate font-medium">Customer (Real)</p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })()}
+                  {/* Real agent — Darryl / bertbob944 */}
+                  {(() => {
+                    const darrylAgent = PROPERTY_AGENTS.find((a) => a.id === "darryl");
+                    if (!darrylAgent) return null;
+                    return (
+                      <button
+                        key={darrylAgent.id}
+                        type="button"
+                        onClick={() => handleDemoClick("agent", darrylAgent.id, darrylAgent.name)}
+                        className="p-2 text-left bg-rose-50 hover:bg-rose-100 border border-rose-300 rounded-xl transition-all group"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-5 h-5 rounded-full bg-rose-600 text-white font-bold text-[9px] flex items-center justify-center shrink-0">
+                            {darrylAgent.initials}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-rose-800 truncate">{darrylAgent.name}</p>
+                            <p className="text-[10px] text-rose-500 truncate font-medium">Agent (Real)</p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })()}
+                </div>
+
+                {/* Demo Customer Accounts */}
+                <div className="text-[10px] text-[#6e897e] font-bold px-1 pt-0.5">Demo — Customer / Buyer:</div>
                 <div className="grid grid-cols-2 gap-1.5">
                   {CUSTOMER_USERS.slice(0, 2).map((cust) => (
                     <button
@@ -274,8 +327,8 @@ export default function AuthModal() {
                   ))}
                 </div>
 
-                {/* Agent Demo Account */}
-                <div className="text-[10px] text-[#6e897e] font-bold px-1 pt-1">Property Agent Role:</div>
+                {/* Demo Agent Accounts */}
+                <div className="text-[10px] text-[#6e897e] font-bold px-1 pt-0.5">Demo — Property Agent:</div>
                 <div className="grid grid-cols-2 gap-1.5">
                   {PROPERTY_AGENTS.slice(0, 2).map((agent) => (
                     <button

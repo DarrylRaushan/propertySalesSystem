@@ -49,18 +49,18 @@ export function calculateLeadExpectedValue(value: number | string, probability: 
 export function calculateLeadPriorityScore(lead: LeadScoringInput): number {
   const prob = Math.min(Math.max(lead.probability, 0), 100);
   const numVal = typeof lead.value === "number" ? lead.value : parseFloat(String(lead.value)) || 0;
-  
+
   // 1. Fit component (0-45 points): based on closing probability
   const fitScore = (prob / 100) * 45;
-  
+
   // 2. Value component (0-30 points): normalized against typical benchmark (e.g. RM 1.5M benchmark)
   const normalizedValue = Math.min(numVal / 1_500_000, 1);
   const valueScore = normalizedValue * 30;
-  
+
   // 3. Segment readiness component (0-15 points)
   const segmentWeight = SEGMENT_MULTIPLIERS[lead.segment ?? ""] ?? 0.6;
   const segmentScore = segmentWeight * 15;
-  
+
   // 4. Action / Urgency component (0-10 points)
   let actionScore = 5;
   if (lead.action) {
@@ -69,7 +69,7 @@ export function calculateLeadPriorityScore(lead: LeadScoringInput): number {
       actionScore = 10;
     }
   }
-  
+
   const totalScore = Math.round(fitScore + valueScore + segmentScore + actionScore);
   return Math.min(Math.max(totalScore, 0), 100);
 }
@@ -77,7 +77,7 @@ export function calculateLeadPriorityScore(lead: LeadScoringInput): number {
 export function deriveLeadPriorityTier(lead: LeadScoringInput): "High" | "Medium" | "Low" {
   const score = calculateLeadPriorityScore(lead);
   const numVal = typeof lead.value === "number" ? lead.value : parseFloat(String(lead.value)) || 0;
-  
+
   // High: Composite score >= 70 OR (Probability >= 75% AND Value >= RM 750k)
   if (score >= 70 || (lead.probability >= 75 && numVal >= 750_000)) {
     return "High";

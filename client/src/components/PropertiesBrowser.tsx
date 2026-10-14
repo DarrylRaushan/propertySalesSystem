@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, BadgeCheck, BedDouble, BookmarkCheck, Box, Building2, ChevronLeft, ChevronRight, Compass, Eye, Globe, MapPin, Ruler, ScanLine, Search, Sparkles, User, X } from "lucide-react";
+import { ArrowLeft, BadgeCheck, BedDouble, BookmarkCheck, Box, Building2, ChevronLeft, ChevronRight, Compass, Eye, Globe, MapPin, Ruler, ScanLine, Search, Sparkles, User, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import PropertyAccordionGallery from "./PropertyAccordionGallery";
 import { getCarouselIndex, getFeaturedListings, getInventorySignals, getPropertyGalleryImages, getPropertyTypeCounts, propertyMatchesInventoryLens, type InventoryLens, type PropertyListing } from "./propertyBrowser";
 import PropertyMapExplorer from "./PropertyMapExplorer";
 import AgentTerrainListingsGrid from "./AgentTerrainListingsGrid";
 import CustomerPropertyDetailModal from "./CustomerPropertyDetailModal";
+import ReverseMatchmakerModal from "./ReverseMatchmakerModal";
 import AgentHeader from "./AgentHeader";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ export default function PropertiesBrowser({ properties, onBack }: { properties: 
   const [savedIds, setSavedIds] = useState<number[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [selected, setSelected] = useState<PropertyListing | null>(null);
+  const [matchmakerProperty, setMatchmakerProperty] = useState<PropertyListing | null>(null);
   const [galleryIndex, setGalleryIndex] = useState(0);
   // Agent scope toggle: "mine" = only active agent's, "all" = full catalog
   const [scope, setScope] = useState<"mine" | "all">("mine");
@@ -153,7 +155,21 @@ export default function PropertiesBrowser({ properties, onBack }: { properties: 
             <span><BadgeCheck size={13} /> 3D-ready</span>
             <span><Compass size={13} /> Buyer dossier</span>
           </div>
-          <button onClick={() => activeProperty && openDossier(activeProperty)}>Open listing <ChevronRight size={15} /></button>
+          <div className="flex items-center gap-2 mt-3">
+            <button
+              onClick={() => activeProperty && setMatchmakerProperty(activeProperty)}
+              className="flex-1 py-2 px-3 rounded-xl bg-[#d7ef73] hover:bg-[#c9e361] text-[#10484b] text-xs font-black transition flex items-center justify-center gap-1.5 shadow-sm border border-[#10484b]/20 cursor-pointer"
+              title="Reverse Matchmaker: Match buyers from your CRM"
+            >
+              <Users size={13} /> Match Buyers
+            </button>
+            <button
+              onClick={() => activeProperty && openDossier(activeProperty)}
+              className="flex-1 py-2 px-3 rounded-xl bg-[#234d4d] hover:bg-[#10484b] text-white text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+            >
+              Open listing <ChevronRight size={14} />
+            </button>
+          </div>
         </aside>
       </section>
 
@@ -235,6 +251,7 @@ export default function PropertiesBrowser({ properties, onBack }: { properties: 
         savedIds={savedIds}
         onToggleSaved={toggleSaved}
         onOpenDossier={openDossier}
+        onOpenMatchmaker={(prop) => setMatchmakerProperty(prop)}
         activeAgentId={activeAgent.id}
         scope={scope}
       />
@@ -246,6 +263,17 @@ export default function PropertiesBrowser({ properties, onBack }: { properties: 
         onClose={() => setSelected(null)}
         property={selected}
         isAgentView={true}
+        onOpenMatchmaker={(prop) => {
+          setSelected(null);
+          setMatchmakerProperty(prop);
+        }}
+      />
+
+      {/* Reverse Property-to-Buyer Matchmaker Modal */}
+      <ReverseMatchmakerModal
+        isOpen={Boolean(matchmakerProperty)}
+        onClose={() => setMatchmakerProperty(null)}
+        property={matchmakerProperty}
       />
     </div>
   );

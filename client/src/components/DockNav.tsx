@@ -210,7 +210,6 @@ export function DockNav({ activePage: activePageProp, onNavigate }: DockNavProps
                     onClick={() => {
                       setProfileOpen(false);
                       quickLogin("customer", "sarah");
-                      toast.success("Switched to Customer Experience Portal");
                     }}
                     className="w-full px-2 py-1.5 rounded-lg text-left text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 flex items-center gap-2 font-medium"
                   >

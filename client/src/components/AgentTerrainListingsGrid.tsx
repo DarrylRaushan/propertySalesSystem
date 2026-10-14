@@ -25,6 +25,7 @@ interface AgentTerrainListingsGridProps {
   savedIds: number[];
   onToggleSaved: (property: PropertyListing) => void;
   onOpenDossier: (property: PropertyListing) => void;
+  onOpenMatchmaker?: (property: PropertyListing) => void;
   activeAgentId: string;
   scope: "mine" | "all";
 }
@@ -59,6 +60,7 @@ export default function AgentTerrainListingsGrid({
   savedIds,
   onToggleSaved,
   onOpenDossier,
+  onOpenMatchmaker,
   activeAgentId,
   scope,
 }: AgentTerrainListingsGridProps) {
@@ -289,13 +291,26 @@ export default function AgentTerrainListingsGrid({
                       <p className="text-[10px] text-[#6e897e]">~{formatRM(estMonthly)}/mo</p>
                     </div>
 
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onOpenDossier(prop); }}
-                      className="px-3.5 py-2 bg-[#234d4d] hover:bg-[#10484b] text-[#d7ef73] rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm border border-[#234d4d]"
-                    >
-                      <Box size={13} />
-                      <span>Inspect 3D</span>
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      {onOpenMatchmaker && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); onOpenMatchmaker(prop); }}
+                          className="px-3 py-2 bg-[#d7ef73] hover:bg-[#c9e361] text-[#10484b] rounded-xl text-xs font-black transition flex items-center gap-1 shadow-sm border border-[#10484b]/20"
+                          title="Reverse Matchmaker: Match buyers for this property"
+                        >
+                          <Users size={12} className="text-[#10484b]" />
+                          <span>Match Buyers</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onOpenDossier(prop); }}
+                        className="px-3.5 py-2 bg-[#234d4d] hover:bg-[#10484b] text-[#d7ef73] rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm border border-[#234d4d]"
+                      >
+                        <Box size={13} />
+                        <span>Inspect 3D</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

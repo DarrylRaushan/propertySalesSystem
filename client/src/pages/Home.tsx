@@ -378,6 +378,11 @@ export default function Home() {
   const { data: trendRaw } = trpc.salesTrend.byPeriod.useQuery({ period });
   const { data: sourcesRaw } = trpc.enquirySources.list.useQuery({ period });
   const { data: healthRaw } = trpc.followUpHealth.list.useQuery({ period });
+  // Agent pipeline viewings — customer-booked tours visible to the assigned agent
+  const { data: agentViewings = [] } = trpc.viewings.listByAgent.useQuery(
+    { agentId: activeAgent.id, limit: 10 },
+    { refetchInterval: 30_000 } // auto-refresh every 30s
+  );
 
   // ─── Derived / mapped data ──────────────────────────────────────────────────
   // Leads: map DB rows or static leads filtered by activeAgent.id
@@ -428,14 +433,20 @@ export default function Home() {
 
       return dbProperties.map((p, idx) => {
         const img = p.imageUrl || fallbackImages[idx % fallbackImages.length];
-        // Assign to agents based on location / specialization
-        let assignedAgent = agentList[idx % agentList.length];
-        if (/mont kiara|klcc|damansara/i.test(p.location)) {
-          assignedAgent = idx % 2 === 0 ? "hannah" : "chloe";
-        } else if (/shah alam|selangor|petaling jaya|cyberjaya/i.test(p.location)) {
-          assignedAgent = idx % 2 === 0 ? "amir" : "hannah";
-        } else if (/johor|iskandar/i.test(p.location)) {
-          assignedAgent = "chloe";
+        // Use the agentId stored in DB directly — only fall back to round-robin
+        // for legacy rows that have no agentId set.
+        let assignedAgent: string;
+        if (p.agentId) {
+          assignedAgent = p.agentId;
+        } else {
+          assignedAgent = agentList[idx % agentList.length];
+          if (/mont kiara|klcc|damansara/i.test(p.location)) {
+            assignedAgent = idx % 2 === 0 ? "hannah" : "chloe";
+          } else if (/shah alam|selangor|petaling jaya|cyberjaya/i.test(p.location)) {
+            assignedAgent = idx % 2 === 0 ? "amir" : "hannah";
+          } else if (/johor|iskandar/i.test(p.location)) {
+            assignedAgent = "chloe";
+          }
         }
 
         return {
@@ -472,17 +483,18 @@ export default function Home() {
     ],
   }), [dynamicLeads, agentHighPriority, dynamicProperties, activeAgent.id, agentExpectedRevenue]);
 
-  // Funnel: Agent-specific pipeline progression
+  // Funnel: Agent-specific pipeline progression (Bookings = real confirmed viewings)
   const dynamicFunnelData = useMemo(() => {
     const total = dynamicLeads.length || 4;
     const qualified = dynamicLeads.filter((l) => l.probability >= 65).length || 3;
-    const bookings = dynamicLeads.filter((l) => l.probability >= 80).length || 2;
+    const confirmedViewings = agentViewings.filter((v) => v.status === "Confirmed").length;
+    const bookings = confirmedViewings || dynamicLeads.filter((l) => l.probability >= 80).length || 2;
     return [
       { stage: "Enquiries", value: total, color: "#287462" },
       { stage: "Qualified", value: qualified, color: "#4b8a70" },
       { stage: "Bookings", value: bookings, color: "#b6cf70" },
     ];
-  }, [dynamicLeads]);
+  }, [dynamicLeads, agentViewings]);
 
   // Sales trend: map DB rows to { month, value (in millions), date }
   const dynamicTrendData = useMemo(() => {
@@ -581,6 +593,7 @@ export default function Home() {
       {activePage === "Dashboard" ? (
         <CompactDashboard
           leads={filteredLeads}
+          viewings={agentViewings}
           trendData={dynamicTrendData}
           funnelData={dynamicFunnelData}
           sourceData={dynamicRingData}

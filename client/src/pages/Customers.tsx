@@ -204,15 +204,24 @@ export default function Customers() {
     });
 
     const isFrontendPreview = !apiCustomers?.length;
+
+    // Agent lookup table — keeps customer rows in sync with the PROPERTY_AGENTS roster
+    const AGENT_INFO: Record<string, { id: string; name: string; initials: string; role: string }> = {
+        hannah: { id: "hannah", name: "Hannah Cheong", initials: "HC", role: "Prime Specialist" },
+        amir:   { id: "amir",   name: "Amir Rahman",   initials: "AR", role: "Investment Consultant" },
+        chloe:  { id: "chloe",  name: "Chloe Tan",     initials: "CT", role: "Residential Lead" },
+        darryl: { id: "darryl", name: "Darryl Raushan", initials: "DR", role: "VIP Luxury Lead Specialist" },
+    };
+    const ROUND_ROBIN_AGENTS = ["hannah", "amir", "chloe"];
+
     const allCustomersList = useMemo(() => {
         const rawList = apiCustomers?.length ? apiCustomers : FRONTEND_PREVIEW_CUSTOMERS;
         return rawList.map((c, idx) => {
-            const assigned = (c as any).assignedAgent || {
-                id: idx % 3 === 0 ? "hannah" : idx % 3 === 1 ? "amir" : "chloe",
-                name: idx % 3 === 0 ? "Hannah Cheong" : idx % 3 === 1 ? "Amir Rahman" : "Chloe Tan",
-                initials: idx % 3 === 0 ? "HC" : idx % 3 === 1 ? "AR" : "CT",
-                role: idx % 3 === 0 ? "Prime Specialist" : idx % 3 === 1 ? "Investment Consultant" : "Residential Lead",
-            };
+            // Prefer the agentId stored in the DB; fall back to round-robin for legacy rows
+            const dbAgentId = (c as any).agentId as string | undefined;
+            const assigned = (c as any).assignedAgent
+                || (dbAgentId && AGENT_INFO[dbAgentId])
+                || AGENT_INFO[ROUND_ROBIN_AGENTS[idx % ROUND_ROBIN_AGENTS.length]];
             return {
                 ...c,
                 assignedAgent: assigned,

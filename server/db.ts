@@ -6,11 +6,41 @@ import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db) {
     try {
       const sqlite = new Database("sqlite.db");
+      
+      // Auto-migrate / ensure WhatsApp schema exists
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS whatsapp_messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          viewingId INTEGER REFERENCES property_viewings(id) ON DELETE SET NULL,
+          customerAccountId INTEGER REFERENCES customer_accounts(id) ON DELETE SET NULL,
+          leadId INTEGER REFERENCES leads(id) ON DELETE SET NULL,
+          phone TEXT NOT NULL,
+          senderName TEXT,
+          direction TEXT NOT NULL,
+          messageType TEXT NOT NULL,
+          message TEXT NOT NULL,
+          status TEXT DEFAULT 'sent' NOT NULL,
+          parsedAction TEXT,
+          rawPayload TEXT,
+          createdAt TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        );
+      `);
+
+      // Safe column additions for property_viewings
+      try {
+        sqlite.exec(`ALTER TABLE property_viewings ADD COLUMN cancelledVia TEXT;`);
+      } catch {}
+      try {
+        sqlite.exec(`ALTER TABLE property_viewings ADD COLUMN cancellationReason TEXT;`);
+      } catch {}
+      try {
+        sqlite.exec(`ALTER TABLE property_viewings ADD COLUMN whatsappNotificationSent INTEGER DEFAULT 0 NOT NULL;`);
+      } catch {}
+
       _db = drizzle(sqlite);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);

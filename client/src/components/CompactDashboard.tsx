@@ -7,6 +7,7 @@ import {
   BarChart3,
   Bot,
   Box,
+  CalendarCheck,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -70,9 +71,20 @@ type SourceItem = { label: string; value: number; color: string; note?: string }
 type TrendItem = { month: string; value: number };
 type RevenueCommissionItem = { month: string; revenue: number; commission: number };
 type PerformanceMixItem = { month: string; bookings: number; revenue: number; runRate: number };
+type Viewing = {
+  id: number;
+  propertyTitle: string;
+  propertyLocation: string;
+  agentName: string;
+  date: string;
+  timeSlot: string;
+  status: string;
+  customerName?: string;
+};
 
 export type CompactDashboardProps = {
   leads: Lead[];
+  viewings?: Viewing[];
   trendData: TrendItem[];
   funnelData: FunnelItem[];
   sourceData: SourceItem[];
@@ -451,6 +463,95 @@ function ExperienceDialog({
   );
 }
 
+// ── Confirmed Tours Strip ─────────────────────────────────────────────────────
+// Renders customer-booked viewings inside the agent's lead pipeline card.
+function ConfirmedToursStrip({ viewings }: { viewings: Viewing[] }) {
+  const formatDate = (date: string) => {
+    try {
+      return new Date(date).toLocaleDateString("en-MY", { day: "numeric", month: "short" });
+    } catch {
+      return date;
+    }
+  };
+
+  const statusStyle = (status: string) => {
+    if (status === "Confirmed")  return { dot: "#22c55e", bg: "#f0fdf4", text: "#15803d" };
+    if (status === "Cancelled")  return { dot: "#ef4444", bg: "#fef2f2", text: "#b91c1c" };
+    return { dot: "#f59e0b", bg: "#fffbeb", text: "#b45309" };
+  };
+
+  return (
+    <div style={{
+      margin: "0 0 12px 0",
+      border: "1.5px solid #d7ef73",
+      borderRadius: 12,
+      overflow: "hidden",
+      background: "#f8fdf2",
+    }}>
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 7,
+        padding: "8px 12px 7px",
+        borderBottom: "1px solid #e6f0c6",
+        background: "#f0f9e0",
+      }}>
+        <CalendarCheck size={13} color="#4a7a28" />
+        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "#4a7a28", textTransform: "uppercase" }}>
+          Confirmed Tours · {viewings.filter(v => v.status === "Confirmed").length} upcoming
+        </span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        {viewings.slice(0, 5).map((v, i) => {
+          const s = statusStyle(v.status);
+          const isCancelled = v.status === "Cancelled";
+          return (
+            <div
+              key={v.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "7px 12px",
+                borderTop: i === 0 ? "none" : "1px solid #edf3e0",
+                opacity: isCancelled ? 0.55 : 1,
+                transition: "background 0.15s",
+              }}
+            >
+              {/* Status dot */}
+              <span style={{
+                width: 7, height: 7, borderRadius: "50%",
+                background: s.dot, flexShrink: 0,
+              }} />
+              {/* Date + time */}
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#365924", minWidth: 64, flexShrink: 0 }}>
+                {formatDate(v.date)} · {v.timeSlot}
+              </span>
+              {/* Property */}
+              <span style={{ fontSize: 11, color: "#46622e", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {v.propertyTitle}
+              </span>
+              {/* Customer */}
+              {v.customerName && (
+                <span style={{ fontSize: 11, color: "#7a9960", flexShrink: 0, marginLeft: 4 }}>
+                  {v.customerName}
+                </span>
+              )}
+              {/* Status badge */}
+              <span style={{
+                fontSize: 10, fontWeight: 700, padding: "2px 7px",
+                borderRadius: 6, background: s.bg, color: s.text, flexShrink: 0,
+              }}>
+                {v.status}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function PipelineProgressLegend({ data }: { data: FunnelItem[] }) {
   const [activeIndex, setActiveIndex] = useState(1);
   const stages = data.slice(0, 4);
@@ -562,8 +663,105 @@ function InteractiveSourceMix({ data, compact = false }: { data: SourceItem[]; c
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const total = data.reduce((sum, item) => sum + item.value, 0) || 1;
   const active = hoveredIndex === null ? null : data[hoveredIndex];
-  const pieSize = compact ? 150 : 260;
-  const innerRadius = compact ? 44 : 78;
+
+  if (compact) {
+    const pieSize = 96;
+    const innerRadius = 30;
+    const topSource = [...data].sort((a, b) => b.value - a.value)[0];
+
+    return (
+      <div className="perf-source-compact-layout" onMouseLeave={() => setHoveredIndex(null)}>
+        {/* Top visual card: Donut chart + quick metrics */}
+        <div className="perf-source-top-card">
+          <div className="perf-source-pie-box">
+            <PieChart
+              data={data}
+              size={pieSize}
+              innerRadius={innerRadius}
+              padAngle={0.038}
+              cornerRadius={4}
+              hoveredIndex={hoveredIndex}
+              onHoverChange={setHoveredIndex}
+              hoverOffset={5}
+            >
+              {data.map((item, index) => (
+                <PieSlice key={item.label} index={index} hoverEffect="grow" hoverOffset={5} showGlow />
+              ))}
+              <PieCenter defaultLabel="Total" className="source-mix-pie-center">
+                {({ value, label }) => (
+                  <div className="perf-source-pie-center">
+                    <strong>{value}</strong>
+                    <span>{label}</span>
+                  </div>
+                )}
+              </PieCenter>
+            </PieChart>
+          </div>
+
+          <div className="perf-source-top-meta">
+            <div className="perf-source-meta-row">
+              <span className="perf-source-meta-label">Total volume</span>
+              <strong className="perf-source-meta-val">{total} leads</strong>
+            </div>
+            <div className="perf-source-meta-row">
+              <span className="perf-source-meta-label">Top channel</span>
+              <div className="perf-source-meta-pill">
+                <i style={{ background: topSource?.color || "#287462" }} />
+                <span>{topSource ? topSource.label.replace(" enquiries", "").replace(" campaigns", "") : "—"}</span>
+                <b>{topSource ? `${Math.round((topSource.value / total) * 100)}%` : ""}</b>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 2x2 Grid of source cards */}
+        <div className="perf-source-grid">
+          {data.map((item, index) => {
+            const percentage = Math.round((item.value / total) * 100);
+            const isActive = hoveredIndex === index;
+            return (
+              <button
+                key={item.label}
+                type="button"
+                className={`perf-source-tile ${isActive ? "is-active" : ""}`}
+                onMouseEnter={() => setHoveredIndex(index)}
+                onFocus={() => setHoveredIndex(index)}
+                onClick={() => setHoveredIndex(hoveredIndex === index ? null : index)}
+              >
+                <div className="perf-source-tile-title">
+                  <i style={{ background: item.color }} />
+                  <span title={item.label}>{item.label}</span>
+                </div>
+                <div className="perf-source-tile-metric">
+                  <strong className="perf-source-tile-pct">{percentage}%</strong>
+                  <span className="perf-source-tile-val">{item.value} leads</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Channel insight callout matching Card 3 */}
+        <div className="perf-source-callout">
+          <Sparkles size={13} className="perf-source-callout-icon" />
+          <p>
+            {active ? (
+              <>
+                <strong>{active.label}</strong>: {active.value} leads ({Math.round((active.value / total) * 100)}%)
+              </>
+            ) : (
+              <>
+                <strong>Channel mix</strong>: Healthy distribution across owned and partner sources
+              </>
+            )}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const pieSize = 260;
+  const innerRadius = 78;
 
   return (
     <div className="source-mix-deep-dive">
@@ -573,31 +771,29 @@ function InteractiveSourceMix({ data, compact = false }: { data: SourceItem[]; c
           size={pieSize}
           innerRadius={innerRadius}
           padAngle={0.032}
-          cornerRadius={compact ? 4 : 6}
+          cornerRadius={6}
           hoveredIndex={hoveredIndex}
           onHoverChange={setHoveredIndex}
-          hoverOffset={compact ? 5 : 9}
+          hoverOffset={9}
         >
           {data.map((item, index) => (
-            <PieSlice key={item.label} index={index} hoverEffect="grow" hoverOffset={compact ? 5 : 8} showGlow />
+            <PieSlice key={item.label} index={index} hoverEffect="grow" hoverOffset={8} showGlow />
           ))}
           <PieCenter defaultLabel="Enquiries" className="source-mix-pie-center">
             {({ value, label }) => (
               <div className="source-mix-pie-center-content">
                 <strong>{value}</strong>
                 <span>{label}</span>
-                {!compact && <small>{Math.round(((value || 0) / total) * 100)}% of enquiries</small>}
+                <small>{Math.round(((value || 0) / total) * 100)}% of enquiries</small>
               </div>
             )}
           </PieCenter>
         </PieChart>
-        {!compact && (
-          <p>
-            {active
-              ? `${active.label} is selected. Use the legend to compare source contribution.`
-              : "Hover a slice or source to inspect its contribution."}
-          </p>
-        )}
+        <p>
+          {active
+            ? `${active.label} is selected. Use the legend to compare source contribution.`
+            : "Hover a slice or source to inspect its contribution."}
+        </p>
       </div>
       <div className="source-mix-interactive-legend" onMouseLeave={() => setHoveredIndex(null)}>
         <div className="source-mix-legend-heading">
@@ -626,7 +822,7 @@ function InteractiveSourceMix({ data, compact = false }: { data: SourceItem[]; c
           );
         })}
         <div className="source-mix-insight">
-          <Sparkles size={compact ? 11 : 15} />
+          <Sparkles size={15} />
           <p>
             <b>{active ? `${active.label} contribution` : "Channel insight"}</b>
             {active
@@ -839,6 +1035,7 @@ function PerformanceMixChart({ data }: { data: PerformanceMixItem[] }) {
 
 export default function CompactDashboard({
   leads,
+  viewings,
   trendData,
   funnelData,
   sourceData,
@@ -1182,6 +1379,11 @@ export default function CompactDashboard({
             )}
           </div>
 
+          {/* ── Confirmed Tours Strip (from customer portal bookings) ── */}
+          {viewings && viewings.length > 0 && (
+            <ConfirmedToursStrip viewings={viewings} />
+          )}
+
           {/* Lead List */}
           <PriorityLeadList
             leads={leads}
@@ -1308,7 +1510,7 @@ export default function CompactDashboard({
           <article className="performance-detail-panel">
             <div className="performance-detail-heading">
               <div>
-                <span>
+                <span className="perf-kicker">
                   <Filter size={13} /> Pipeline health
                 </span>
                 <h3>Where deals slow down</h3>
@@ -1338,10 +1540,17 @@ export default function CompactDashboard({
                       <div className="perf-funnel-track">
                         <motion.span
                           className="perf-funnel-fill"
-                          style={{ background: stage.color }}
+                          style={{
+                            background:
+                              i === 0
+                                ? "linear-gradient(90deg, #0f4040 0%, #1d5f50 50%, #2c8c6a 100%)"
+                                : i === 1
+                                ? "linear-gradient(90deg, #1d5f50 0%, #3d9070 50%, #6ab87e 100%)"
+                                : "linear-gradient(90deg, #3d9070 0%, #6ab87e 50%, #b6e04c 100%)",
+                          }}
                           initial={{ scaleX: 0 }}
                           animate={{ scaleX: pct / 100 }}
-                          transition={{ duration: 0.7, delay: i * 0.1, ease: [0.23, 1, 0.32, 1] }}
+                          transition={{ duration: 0.8, delay: i * 0.12, ease: [0.23, 1, 0.32, 1] }}
                         />
                       </div>
                     </div>
@@ -1375,7 +1584,7 @@ export default function CompactDashboard({
           <article className="performance-detail-panel perf-source-panel">
             <div className="performance-detail-heading">
               <div>
-                <span>
+                <span className="perf-kicker">
                   <Target size={13} /> Source mix
                 </span>
                 <h3>Where momentum starts</h3>
@@ -1391,7 +1600,7 @@ export default function CompactDashboard({
           <article className="performance-detail-panel">
             <div className="performance-detail-heading">
               <div>
-                <span>
+                <span className="perf-kicker">
                   <CheckCircle2 size={13} /> Follow-up health
                 </span>
                 <h3>Action coverage</h3>
@@ -1402,88 +1611,83 @@ export default function CompactDashboard({
               <div className="perf-health-duo">
                 <div className="perf-health-ring-wrap">
                   <svg className="perf-health-ring" viewBox="0 0 64 64">
+                    <defs>
+                      <linearGradient id="ringGradSched" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#0f4040" />
+                        <stop offset="100%" stopColor="#2c8c6a" />
+                      </linearGradient>
+                    </defs>
                     <circle cx="32" cy="32" r="26" className="perf-health-ring-track" />
                     <motion.circle
                       cx="32"
                       cy="32"
                       r="26"
-                      className="perf-health-ring-fill"
-                      stroke="#d7ef73"
+                      className="perf-health-ring-fill perf-health-ring-scheduled"
+                      stroke="url(#ringGradSched)"
                       strokeDasharray={`${(scheduledHealth / 100) * 163.4} 163.4`}
                       initial={{ strokeDashoffset: 163.4 }}
                       animate={{ strokeDashoffset: 0 }}
-                      transition={{ duration: 1, ease: [0.23, 1, 0.32, 1] }}
+                      transition={{ duration: 1.1, ease: [0.23, 1, 0.32, 1] }}
                     />
-                    <text x="32" y="37" className="perf-health-ring-text">
+                    <text x="32" y="35" className="perf-health-ring-text" style={{ fontSize: '15.5px' }}>
                       {scheduledHealth}%
                     </text>
                   </svg>
                   <span className="perf-health-ring-label">Scheduled</span>
+                  <small className="perf-health-ring-sub">Within SLA target</small>
                 </div>
                 <div className="perf-health-ring-wrap">
                   <svg className="perf-health-ring" viewBox="0 0 64 64">
+                    <defs>
+                      <linearGradient id="ringGradContact" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#2c7c68" />
+                        <stop offset="100%" stopColor="#8ac863" />
+                      </linearGradient>
+                    </defs>
                     <circle cx="32" cy="32" r="26" className="perf-health-ring-track" />
                     <motion.circle
                       cx="32"
                       cy="32"
                       r="26"
-                      className="perf-health-ring-fill"
-                      stroke="#83a866"
+                      className="perf-health-ring-fill perf-health-ring-contacted"
+                      stroke="url(#ringGradContact)"
                       strokeDasharray={`${(contactedHealth / 100) * 163.4} 163.4`}
                       initial={{ strokeDashoffset: 163.4 }}
                       animate={{ strokeDashoffset: 0 }}
-                      transition={{ duration: 1, delay: 0.12, ease: [0.23, 1, 0.32, 1] }}
+                      transition={{ duration: 1.1, delay: 0.15, ease: [0.23, 1, 0.32, 1] }}
                     />
-                    <text x="32" y="37" className="perf-health-ring-text">
+                    <text x="32" y="35" className="perf-health-ring-text" style={{ fontSize: '15.5px' }}>
                       {contactedHealth}%
                     </text>
                   </svg>
                   <span className="perf-health-ring-label">Contacted</span>
+                  <small className="perf-health-ring-sub">Direct engagement</small>
                 </div>
               </div>
 
-              <div className="perf-health-bars">
-                <div className="perf-health-bar-row">
-                  <span>Scheduled</span>
-                  <div className="perf-health-bar-track">
-                    <motion.span
-                      style={{ background: "#d7ef73" }}
-                      initial={{ scaleX: 0 }}
-                      animate={{ scaleX: scheduledHealth / 100 }}
-                      transition={{ duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
-                    />
+              {/* Action SLA & Breakdown Metric Cards */}
+              <div className="perf-sla-grid">
+                <div className="perf-sla-card">
+                  <div className="perf-sla-meta">
+                    <span>Response Velocity</span>
+                    <span className="perf-badge-ok">4.2h avg</span>
                   </div>
-                  <b>{scheduledHealth}%</b>
+                  <strong>Active SLA</strong>
+                  <small>Follow-up within standard</small>
                 </div>
-                <div className="perf-health-bar-row">
-                  <span>Contacted</span>
-                  <div className="perf-health-bar-track">
-                    <motion.span
-                      style={{ background: "#83a866" }}
-                      initial={{ scaleX: 0 }}
-                      animate={{ scaleX: contactedHealth / 100 }}
-                      transition={{ duration: 0.8, delay: 0.1, ease: [0.23, 1, 0.32, 1] }}
-                    />
+                <div className="perf-sla-card">
+                  <div className="perf-sla-meta">
+                    <span>Action Gap</span>
+                    <span className="perf-badge-warn">{100 - contactedHealth}%</span>
                   </div>
-                  <b>{contactedHealth}%</b>
-                </div>
-                <div className="perf-health-bar-row">
-                  <span>Action gap</span>
-                  <div className="perf-health-bar-track">
-                    <motion.span
-                      style={{ background: "rgba(255,255,255,0.28)" }}
-                      initial={{ scaleX: 0 }}
-                      animate={{ scaleX: (100 - contactedHealth) / 100 }}
-                      transition={{ duration: 0.8, delay: 0.2, ease: [0.23, 1, 0.32, 1] }}
-                    />
-                  </div>
-                  <b>{100 - contactedHealth}%</b>
+                  <strong>{Math.round(((100 - contactedHealth) / 100) * leads.length)} leads</strong>
+                  <small>Pending initial contact</small>
                 </div>
               </div>
 
               <div className="perf-health-callout">
-                <Check size={12} />
-                <span>Next action logged on {scheduledHealth}% of priority leads</span>
+                <Check size={13} />
+                <span>Next action logged on <strong>{scheduledHealth}%</strong> of priority leads</span>
               </div>
             </div>
           </article>

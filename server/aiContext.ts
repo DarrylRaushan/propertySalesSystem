@@ -1,4 +1,11 @@
 import * as dbFeature from "./db-feature";
+import {
+  calculateMOT,
+  calculateMortgage,
+  calculateRentalYield,
+  checkForeignBuyerEligibility,
+  formatRM,
+} from "./aiCalculators";
 
 export interface SystemDataContext {
   metrics: {
@@ -180,11 +187,67 @@ export async function getLiveSystemDataContext(): Promise<SystemDataContext> {
   };
 }
 
-export function formatSystemContextForPrompt(data: SystemDataContext): string {
-  const formatRM = (val: number) => `RM ${Math.round(val).toLocaleString("en-MY")}`;
+/**
+ * Extracts key financial numbers from query to generate exact pre-computed benchmarks
+ */
+function extractFinancialMatrixFromQuery(query?: string): string {
+  if (!query) return "";
+  const q = query.toLowerCase();
 
-  // Top 15 prioritized leads by expected yield
-  const topLeads = data.leadsSummary
+  // Check for price or loan related query
+  const match = q.match(/(\d[\d,\.]*)\s*(k|m|million|thousand)?/i);
+  let price = 0;
+  if (match) {
+    let raw = parseFloat(match[1].replace(/,/g, ""));
+    if (match[2]) {
+      const u = match[2].toLowerCase();
+      if (u.startsWith("m")) raw *= 1_000_000;
+      else if (u.startsWith("k") || u.startsWith("thou")) raw *= 1_000;
+    }
+    if (raw >= 100000) price = raw;
+  }
+
+  if (price > 0 && (q.includes("mot") || q.includes("stamp") || q.includes("loan") || q.includes("mortgage") || q.includes("calculate") || q.includes("installment") || q.includes("yield") || q.includes("foreign"))) {
+    const mot = calculateMOT(price);
+    const mortgage = calculateMortgage(price, 10, 4.25, 30);
+    const foreignKL = checkForeignBuyerEligibility("Kuala Lumpur", price);
+    const foreignSelangor = checkForeignBuyerEligibility("Selangor", price);
+
+    return `\n[PRE-CALCULATED FINANCIAL MATRIX FOR ${formatRM(price)}]
+• Exact MOT Stamp Duty: ${formatRM(mot.totalStampDuty)} (Tier 1: ${formatRM(mot.tier1)}, Tier 2: ${formatRM(mot.tier2)}, Tier 3: ${formatRM(mot.tier3)}, Tier 4: ${formatRM(mot.tier4)})
+• Legal Fee Estimate (SRO): ${formatRM(mot.estimatedLegalFees)} (Total Entry Cost: ${formatRM(mot.estimatedTotalEntryCost)})
+• 90% Loan Amount (${formatRM(mortgage.loanAmount)}) @ 4.25% for 30 Years: ${formatRM(mortgage.monthlyInstallment)}/month
+• Foreign Buyer Strata Eligibility: KL Eligible=${foreignKL.isEligible ? "YES" : "NO (Min RM1M)"} | Selangor Eligible=${foreignSelangor.isEligible ? "YES" : "NO (Min RM2M)"}
+`;
+  }
+  return "";
+}
+
+export function formatSystemContextForPrompt(data: SystemDataContext, query?: string): string {
+  const q = query ? query.toLowerCase() : "";
+
+  // Smart Filtering (Mini-RAG): Prioritize relevant records if query specifies a lead, property, or location
+  let filteredLeads = [...data.leadsSummary];
+  let filteredProperties = [...data.propertiesSummary];
+
+  if (q) {
+    // If a specific lead name is mentioned
+    const leadMatch = data.leadsSummary.filter((l) => q.includes(l.name.toLowerCase()));
+    if (leadMatch.length > 0) {
+      filteredLeads = [...leadMatch, ...data.leadsSummary.filter((l) => !q.includes(l.name.toLowerCase()))];
+    }
+
+    // If a specific location or property title is mentioned
+    const propMatch = data.propertiesSummary.filter(
+      (p) => q.includes(p.title.toLowerCase()) || q.includes(p.location.toLowerCase()) || q.includes(p.developer.toLowerCase())
+    );
+    if (propMatch.length > 0) {
+      filteredProperties = [...propMatch, ...data.propertiesSummary.filter((p) => !propMatch.some((m) => m.id === p.id))];
+    }
+  }
+
+  // Top prioritized leads by expected yield
+  const topLeads = filteredLeads
     .sort((a, b) => (b.value * b.probability) - (a.value * a.probability))
     .slice(0, 15)
     .map(
@@ -193,7 +256,7 @@ export function formatSystemContextForPrompt(data: SystemDataContext): string {
     )
     .join("\n");
 
-  const propertiesList = data.propertiesSummary
+  const propertiesList = filteredProperties
     .slice(0, 12)
     .map(
       (p) =>
@@ -225,12 +288,14 @@ export function formatSystemContextForPrompt(data: SystemDataContext): string {
     .map((f) => `${f.label}: ${f.value}`)
     .join(" | ");
 
-  return `=== LIVE CRM DATABASE & BENCHMARKS ===
-[KPIS] Leads:${data.metrics.totalLeads} (High:${data.metrics.highPriority}) | Properties:${data.metrics.activeProperties} | Pipeline:${formatRM(data.metrics.expectedSalesValue)} | Buyers:${data.metrics.totalCustomers}
+  const financialMatrix = extractFinancialMatrixFromQuery(query);
+
+  return `=== LIVE REAL-TIME DATABASE DUMP & BENCHMARKS ===
+Total Active Leads: ${data.metrics.totalLeads} (High Priority: ${data.metrics.highPriority}) | Active Properties: ${data.metrics.activeProperties} | Expected Pipeline: ${formatRM(data.metrics.expectedSalesValue)} | Confirmed Buyers: ${data.metrics.totalCustomers}
 [PIPELINE] ${pipelineSummary || "None"}
 [SOURCES] ${enquirySummary || "None"}
 [FOLLOW-UP] ${followUpSummary || "None"}
-[2024 SALES] ${monthlySales || "None"}
+[2024 SALES] ${monthlySales || "None"}${financialMatrix}
 
 [PROPERTIES PORTFOLIO]
 ${propertiesList || "No properties"}
@@ -247,20 +312,37 @@ ${customersList || "No records"}
  * Customer-safe context formatting — STRICTLY excludes leads, buyer contacts, pipeline data, and sales revenue.
  * Only includes public property listings and Malaysian property buying benchmarks.
  */
-export function formatCustomerContextForPrompt(properties: Array<any>): string {
-  const formatRM = (val: number) => `RM ${Math.round(val).toLocaleString("en-MY")}`;
+export function formatCustomerContextForPrompt(properties: Array<any>, query?: string): string {
+  const q = query ? query.toLowerCase() : "";
 
-  const propertiesList = properties
-    .slice(0, 25)
+  // Filter properties matching location or features if provided
+  let filtered = [...properties];
+  if (q) {
+    const matched = properties.filter(
+      (p) =>
+        q.includes(p.title.toLowerCase()) ||
+        q.includes(p.location.toLowerCase()) ||
+        q.includes(p.developer.toLowerCase()) ||
+        (p.type && q.includes(p.type.toLowerCase()))
+    );
+    if (matched.length > 0) {
+      filtered = [...matched, ...properties.filter((p) => !matched.some((m) => m.id === p.id))];
+    }
+  }
+
+  const propertiesList = filtered
+    .slice(0, 20)
     .map(
       (p) =>
         `• [${p.title}] by ${p.developer} | ${p.location} | Type:${p.type} | Price:${formatRM(p.price)} | Size:${p.size} | ${p.beds} Beds, ${p.baths} Baths | Est. Yield:${p.rentalYield || "5.0%"}${p.badge ? ` | Badge:${p.badge}` : ""}${p.features ? ` | Features:${p.features}` : ""}`
     )
     .join("\n");
 
+  const financialMatrix = extractFinancialMatrixFromQuery(query);
+
   return `=== PUBLIC RESIDENCE INVENTORY & MALAYSIAN REAL ESTATE GUIDELINES ===
 [AVAILABLE PROPERTIES]
-${propertiesList || "No properties currently listed."}
+${propertiesList || "No properties currently listed."}${financialMatrix}
 
 [MALAYSIAN REAL ESTATE BENCHMARKS & GUIDELINES]
 • Standard Commercial Mortgage Rates: 4.10% – 4.35% p.a.
@@ -278,5 +360,3 @@ ${propertiesList || "No properties currently listed."}
 • Loan Agreement Stamp Duty: 0.50% of total loan facility.
 ======================================================================`;
 }
-
-
